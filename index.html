@@ -35,6 +35,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-overlay.show .login-box{box-shadow:0 0 30px 6px rgba(212,31,38,.35),0 20px 60px rgba(0,0,0,.4)}
 .login-bg{position:fixed;inset:0;background:var(--red);z-index:0}
 .login-bg-inner{position:absolute;inset:0;background:radial-gradient(circle at 60% 35%, #f47920 0%, #d41f26 45%, #8b1014 100%);opacity:.85}
+.hide-login-bg .login-bg{display:none!important}
+.hide-login-bg .login-overlay{display:none!important}
 
 .logo-img{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--orange);display:block;margin:0 auto 12px}
 .login-title{font-size:22px;font-weight:800;color:var(--red);text-align:center;margin-bottom:2px}
@@ -651,6 +653,7 @@ function saveToken(){
   if(!t.startsWith('ghp_')){ document.getElementById('token-err').style.display='block'; return; }
   localStorage.setItem('doms_gh_token', t);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.body.classList.remove('hide-login-bg');
   document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
 }
@@ -829,6 +832,9 @@ function openLogin(){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-splash').style.display='none';
   document.getElementById('screen-login').style.display='block';
+  document.body.classList.remove('hide-login-bg');
+  const loginBg=document.querySelector('.login-bg');
+  if(loginBg) loginBg.style.display='';
   document.getElementById('login-overlay').classList.add('show');
 }
 // ── SESSION MANAGEMENT ────────────────────────────────────
@@ -901,8 +907,11 @@ function logout(){
   clearSession();
   if(inactivityTimer) clearTimeout(inactivityTimer);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.body.classList.remove('hide-login-bg');
   document.getElementById('screen-login').style.display='block';
   document.getElementById('screen-splash').style.display='none';
+  const loginBg=document.querySelector('.login-bg');
+  if(loginBg) loginBg.style.display='';
   document.getElementById('login-overlay').classList.add('show');
   document.getElementById('staff-username').value='';
   document.getElementById('staff-pin').value='';
@@ -910,12 +919,12 @@ function logout(){
   document.getElementById('owner-pass').value='';
 }
 function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');});
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-login').style.display='none';
   document.getElementById('screen-splash').style.display='none';
-  const target=document.getElementById(id);
-  target.classList.add('active');
   document.getElementById('login-overlay').classList.remove('show');
+  document.body.classList.add('hide-login-bg');
+  document.getElementById(id).classList.add('active');
 }
 
 function initStaffForm(){
