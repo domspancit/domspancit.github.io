@@ -863,7 +863,7 @@ function computeFinancials(products, vatSalesInput, cashHand, gcash, grabfood, f
   PRODUCTS.filter(p=>p.cat==='addon'&&p.pck).forEach(p=>{addonPck+=(products[p.id]||0)*(p.pck||0);});
   const pck=bilaoPck+addonPck;
   const paperCover=bilaoQty*4;
-  const foodCost=bilaoFoodCost+paperCover;
+  // foodCost calculated below after phn/pck are known
   const totalVatSales=vatSalesInput+gcash;
   const vat=totalVatSales*(0.12/1.12);
   const salesLessVat=totalVatSales-vat;
@@ -875,10 +875,15 @@ function computeFinancials(products, vatSalesInput, cashHand, gcash, grabfood, f
   const lpg=(gross/15000)*800;
   const grossPrf=gross-phn;
   const ohd=BRANCHES.find(b=>b.name===currentBranch)?.ohd||0;
+  // PRF = GrossPrf - LPG - OHD - Misc Expenses only (regular expenses excluded from PRF calc)
   const prf=grossPrf-lpg-ohd-totalMisc;
   const tts=prf*0.1;
   const netPrf=prf-tts;
-  return{phn,pck,bilaoQty,bilaoQtyMap,bilaoFoodCost,paperCover,foodCost,vatSalesInput,totalVatSales,vat,salesLessVat,gross,cashAfterVat,cashSum,checkBalance,expTotal,grossPrf,lpg,prf,tts,netPrf};
+  // Food Cost = PHN - total packaging cost (PCK)
+  const foodCost=phn-pck;
+  // Paper Cost = PCK (total packaging)
+  const paperCost=pck;
+  return{phn,pck,paperCost,bilaoQty,bilaoQtyMap,bilaoFoodCost,paperCover,foodCost,vatSalesInput,totalVatSales,vat,salesLessVat,gross,cashAfterVat,cashSum,checkBalance,expTotal,grossPrf,lpg,prf,tts,netPrf};
 }
 
 async function submitEntry(){
@@ -906,7 +911,7 @@ async function submitEntry(){
     gross:fin.gross,salesLessVat:fin.salesLessVat,vat:fin.vat,
     totalVatSales:fin.totalVatSales,cashAfterVat:fin.cashAfterVat,
     checkBalance:fin.checkBalance,cashSum:fin.cashSum,
-    phn:fin.phn,pck:fin.pck,
+    phn:fin.phn,pck:fin.pck,paperCost:fin.paperCost,
     bilaoQty:fin.bilaoQty,bilaoFoodCost:fin.bilaoFoodCost,paperCover:fin.paperCover,
     foodCost:fin.foodCost,grossPrf:fin.grossPrf,lpg:fin.lpg,prf:fin.prf,tts:fin.tts,netPrf:fin.netPrf,
     bilaoS:fin.bilaoQtyMap.S||0,bilaoM:fin.bilaoQtyMap.M||0,bilaoL:fin.bilaoQtyMap.L||0,bilaoXL:fin.bilaoQtyMap.XL||0,
@@ -1069,7 +1074,9 @@ function openEditModal(entry){
       ${f('FoodPanda (₱)','foodpanda',entry.foodpanda)}
       ${f('Total Expenses (₱)','totalExpenses',entry.totalExpenses)}
       ${f('Misc Expenses (₱)','totalMisc',entry.totalMisc)}
-      ${f('Food Cost (₱)','foodCost',entry.foodCost)}
+    </div>
+    <div style="background:var(--green-light);border-radius:10px;padding:10px 14px;margin:4px 0 10px;font-size:12px">
+      <strong style="color:var(--green-text)">Auto-calculated on save:</strong> Gross, PHN, Food Cost (PHN−PCK), LPG, PRF, TTS, Net PRF, Avg Check, Check Balance
     </div>
     <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:12px;color:var(--text-2)">
       ℹ️ Changing payment/sales fields will auto-recalculate Gross, PRF, TTS, Net PRF, LPG, Check Balance.
@@ -1106,16 +1113,18 @@ function saveEditModal(id){
   const lpg=(gross/15000)*800;
   const ohd=BRANCHES.find(b=>b.name===branchName)?.ohd||0;
   const grossPrf=gross-phn;
+  // PRF = GrossPrf - LPG - OHD - Misc only
   const prf=grossPrf-lpg-ohd-totalMisc;
   const tts=prf*0.1;
   const netPrf=prf-tts;
   const avgCheck=guestCount>0?gross/guestCount:0;
-  const foodCost=g('foodCost');
+  const foodCost=phn-orig.pck; // Food Cost = PHN - PCK (packaging)
+  const paperCost=orig.pck||0;
   updateEntry(id,{
     date:newDate,guestCount,vatSalesInput,cashHand,gcash,grabfood,foodpanda,
     totalExpenses,totalMisc,foodCost,
     totalVatSales,vat,salesLessVat,gross,cashAfterVat,cashSum,checkBalance,
-    lpg,grossPrf,prf,tts,netPrf,avgCheck,ohd
+    lpg,grossPrf,prf,tts,netPrf,avgCheck,ohd,foodCost,paperCost
   });
 }
 
@@ -1189,12 +1198,14 @@ async function initOwnerDashboard(){
     <div class="metric-card orange"><div class="metric-lbl">LPG</div><div class="metric-val">${pesoS(totLpg)}</div><div class="metric-sub">Gross/15000×800</div></div>
     <div class="metric-card orange"><div class="metric-lbl">OHD</div><div class="metric-val">${pesoS(totOhd)}</div><div class="metric-sub">Overhead per branch</div></div>
     <div class="metric-card orange"><div class="metric-lbl">PRF</div><div class="metric-val">${pesoS(totPrf)}</div><div class="metric-sub">GrossPrf−LPG−OHD−Misc</div></div>
-    <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${pesoS(totTts)}</div><div class="metric-sub">PRF × 10%</div></div>
+    <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${pesoS(totTts)}</div><div class="metric-sub">PRF × 10% → Church</div></div>
     <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${pesoS(totNetPrf)}</div><div class="metric-sub">PRF − TTS</div></div>
-    <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${pesoS(totExp)}</div><div class="metric-sub">Expenses + Misc</div></div>
-    <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${pesoS(totFoodCost)}</div><div class="metric-sub">Bilao + Paper</div></div>
+    <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${pesoS(totExp)}</div><div class="metric-sub">All expenses + misc</div></div>
+    <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${pesoS(totFoodCost)}</div><div class="metric-sub">PHN − Packaging Cost</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PAPER COST (PCK)</div><div class="metric-val">${pesoS(tot('pck'))}</div><div class="metric-sub">Total packaging</div></div>
     <div class="metric-card ${Math.abs(totCashBalance)<1?'green':'red'}"><div class="metric-lbl">CHECK & BALANCE</div><div class="metric-val" style="${balClass}">${totCashBalance>=0?'+':''}${pesoS(totCashBalance)}</div><div class="metric-sub">${Math.abs(totCashBalance)<1?'✓ Balanced':'⚠ Variance'}</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">TOTAL GUESTS</div><div class="metric-val">${totGuests.toLocaleString()}</div><div class="metric-sub">${avgCheck>0?'Avg ₱'+avgCheck.toFixed(2)+'/guest':'No guest data'}</div></div>`;
+    <div class="metric-card orange"><div class="metric-lbl">TOTAL GUESTS</div><div class="metric-val">${totGuests.toLocaleString()}</div><div class="metric-sub">${entries.length} entr${entries.length!==1?'ies':'y'}</div></div>
+    <div class="metric-card green"><div class="metric-lbl">AVERAGE CHECK</div><div class="metric-val">${avgCheck>0?'₱'+avgCheck.toFixed(2):'—'}</div><div class="metric-sub">Gross ÷ Guests</div></div>`;
   // Top products
   const qtys={};entries.forEach(e=>Object.entries(e.products||{}).forEach(([id,qty])=>{qtys[id]=(qtys[id]||0)+qty;}));
   const sorted=Object.entries(qtys).sort((a,b)=>b[1]-a[1]).slice(0,8);
@@ -1278,7 +1289,7 @@ async function renderReports(){
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">TTS (10%)</div><div style="font-weight:800">${peso(e.tts||0)}</div></div>
         <div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">NET PRF</div><div style="font-weight:900;font-size:16px;color:var(--green-dark)">${peso(e.netPrf||0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">FOOD COST</div><div style="font-weight:700">${peso(e.foodCost||0)}</div></div>
-        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.pck||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.paperCost||e.pck||0)}</div></div>
         <div style="background:${Math.abs(cb)<1?'var(--green-light)':'var(--red-light)'};border-radius:8px;padding:7px 9px;grid-column:span 2">
           <div style="color:${Math.abs(cb)<1?'var(--green-text)':'var(--red-text)'};font-weight:700;margin-bottom:2px">${cbIcon} CHECK &amp; BALANCE</div>
           <div style="font-weight:800;font-size:15px;${cbClass}">${cb>=0?'+':''}${peso(cb)}</div>
@@ -1305,7 +1316,8 @@ async function renderReports(){
       <div><span style="color:var(--orange-text);font-weight:700">TTS (10%)</span><div style="font-weight:800;color:var(--orange-dark)">${peso(totTts)}</div></div>
       <div style="grid-column:span 2"><span style="color:var(--green-text);font-weight:700">NET PRF</span><div style="font-weight:900;font-size:20px;color:var(--green-dark)">${peso(totNetPrf)}</div></div>
       <div><span style="color:var(--text-2)">Expenses</span><div style="font-weight:700;color:var(--red-text)">${peso(totExp)}</div></div>
-      <div><span style="color:var(--text-2)">Food Cost</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
+      <div><span style="color:var(--text-2)">Food Cost (PHN−PCK)</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
+      <div><span style="color:var(--text-2)">Paper Cost (PCK)</span><div style="font-weight:700">${peso(tot('pck'))}</div></div>
       <div style="grid-column:span 2"><span style="${balClass.replace('color:','color:').replace(';','')}font-weight:700">Check &amp; Balance</span><div style="font-weight:800;font-size:16px;${balClass}">${totCashBalance>=0?'+':''}${peso(totCashBalance)} ${Math.abs(totCashBalance)<1?'✓ Balanced':'⚠ Variance'}</div></div>
     </div>
   </div>
