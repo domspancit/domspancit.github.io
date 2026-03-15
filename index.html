@@ -35,8 +35,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-overlay.show .login-box{box-shadow:0 0 30px 6px rgba(212,31,38,.35),0 20px 60px rgba(0,0,0,.4)}
 .login-bg{position:fixed;inset:0;background:var(--red);z-index:0}
 .login-bg-inner{position:absolute;inset:0;background:radial-gradient(circle at 60% 35%, #f47920 0%, #d41f26 45%, #8b1014 100%);opacity:.85}
-.hide-login-bg .login-bg{display:none!important}
-.hide-login-bg .login-overlay{display:none!important}
 
 .logo-img{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--orange);display:block;margin:0 auto 12px}
 .login-title{font-size:22px;font-weight:800;color:var(--red);text-align:center;margin-bottom:2px}
@@ -242,19 +240,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .money-grid{grid-template-columns:1fr}
   .branch-cards{grid-template-columns:1fr 1fr}
 }
-
-/* SETTINGS SUB-TABS */
-.stab{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface);transition:.15s}
-.stab:hover{border-color:var(--green);color:var(--green-text)}
-.stab-active{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important}
-.ptab{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface);transition:.15s}
-.ptab-active{background:var(--orange)!important;color:#fff!important;border-color:var(--orange)!important}
-.config-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
-.config-row:last-child{border-bottom:none}
-.config-row .name{flex:1;font-weight:700}
-.config-row .detail{color:var(--text-2);font-size:12px;min-width:80px;text-align:right}
-.config-row .acts{display:flex;gap:6px;flex-shrink:0}
-.config-row .acts button{padding:4px 10px;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer;border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -307,16 +292,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div id="owner-fields" style="display:none">
     <div class="field">
-      <label>Username</label>
-      <input type="text" id="owner-username" placeholder="Enter owner username" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <div class="field">
-      <label>PIN <span style="font-weight:400;font-size:11px;color:var(--text-3)">(or legacy password if no accounts set up)</span></label>
-      <input type="password" id="owner-pass" placeholder="Enter PIN or password" maxlength="20" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
+      <label>Owner Password</label>
+      <input type="password" id="owner-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
   </div>
   <div class="err" id="login-err">Incorrect PIN or password.</div>
   <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Sign In</button>
+
+</div>
+</div>
+</div>
 </div>
 
 <!-- STAFF SCREEN -->
@@ -519,105 +504,55 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <div id="owner-settings" style="display:none">
-      <!-- Settings Sub-Tabs -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-        <button id="stab-users" class="stab stab-active" onclick="settingsTab('users',this)">👥 Users</button>
-        <button id="stab-branches" class="stab" onclick="settingsTab('branches',this)">🏪 Branches</button>
-        <button id="stab-products" class="stab" onclick="settingsTab('products',this)">🍜 Products</button>
-        <button id="stab-bilao" class="stab" onclick="settingsTab('bilao',this)">📦 Bilao Sizes</button>
-        <button id="stab-brand" class="stab" onclick="settingsTab('brand',this)">🖼 Brand</button>
-      </div>
-
-      <!-- USERS TAB -->
-      <div id="stab-users-content">
-        <div class="section-label">Owner Accounts</div>
-        <div class="card">
-          <div id="owner-accounts-list"></div>
-          <button class="btn btn-green" onclick="showAddUser('owner')" style="margin-top:10px;width:100%">+ Add Owner Account</button>
+      <!-- Profile Picture -->
+      <div class="section-label">Brand Profile</div>
+      <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="position:relative">
+          <img id="brand-avatar" src="" alt="Logo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--orange);display:none">
+          <div id="brand-avatar-placeholder" style="width:72px;height:72px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:28px">🏪</div>
         </div>
-        <div class="section-label" style="margin-top:16px">Staff Accounts</div>
-        <div class="card">
-          <div id="staff-accounts-list"></div>
-          <button class="btn btn-green" onclick="showAddUser('staff')" style="margin-top:10px;width:100%">+ Add Staff Account</button>
-        </div>
-        <div class="card" id="add-user-form" style="display:none">
-          <div style="font-size:14px;font-weight:700;margin-bottom:12px" id="add-user-title">New Account</div>
-          <input type="hidden" id="new-user-role" value="staff">
-          <div class="field"><label>Username</label><input type="text" id="new-user-name" placeholder="e.g. maria_fv"></div>
-          <div class="field"><label>PIN (4–6 digits)</label><input type="password" id="new-user-pin" placeholder="4-6 digits" maxlength="6" inputmode="numeric"></div>
-          <div class="field" id="new-user-branch-field">
-            <label>Branch</label>
-            <select id="new-user-branch"><option value="">Select branch...</option></select>
-          </div>
-          <div class="err" id="add-user-err" style="display:none"></div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-primary" onclick="addUser()" style="flex:1">Save Account</button>
-            <button class="btn btn-ghost" onclick="hideAddUser()" style="flex:1">Cancel</button>
-          </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">Brand Photo / Logo</div>
+          <label style="cursor:pointer;display:inline-block;padding:8px 16px;background:var(--orange);color:#fff;border-radius:8px;font-size:13px;font-weight:700">
+            📷 Upload Image
+            <input type="file" accept="image/*" style="display:none" onchange="uploadBrandPhoto(this)">
+          </label>
+          <button class="btn" style="margin-left:8px;padding:8px 14px;font-size:13px" onclick="removeBrandPhoto()">Remove</button>
         </div>
       </div>
 
-      <!-- BRANCHES TAB -->
-      <div id="stab-branches-content" style="display:none">
-        <div class="section-label">Branch Setup</div>
-        <div class="card"><div id="branches-list"></div></div>
-        <div class="card" id="add-branch-form">
-          <div style="font-size:14px;font-weight:700;margin-bottom:12px">➕ Add / Edit Branch</div>
-          <div class="field"><label>Branch Name</label><input type="text" id="nb-name" placeholder="e.g. Caloocan"></div>
-          <div class="field"><label>OHD (Overhead / day ₱)</label><input type="number" id="nb-ohd" placeholder="4000"></div>
-          <input type="hidden" id="nb-edit-id">
-          <div class="err" id="nb-err" style="display:none"></div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-primary" onclick="saveBranch()" style="flex:1">Save Branch</button>
-            <button class="btn btn-ghost" onclick="resetBranchForm()" style="flex:1">Clear</button>
-          </div>
-        </div>
+      <!-- Change Owner Password -->
+      <div class="section-label" style="margin-top:20px">Change Owner Password</div>
+      <div class="card">
+        <div class="field"><label>Current Password</label><input type="password" id="set-old-pass" placeholder="Enter current password"></div>
+        <div class="field"><label>New Password</label><input type="password" id="set-new-pass" placeholder="Enter new password"></div>
+        <div class="field"><label>Confirm New Password</label><input type="password" id="set-confirm-pass" placeholder="Re-enter new password"></div>
+        <div class="err" id="pass-err" style="display:none"></div>
+        <div style="color:var(--green);font-size:13px;display:none" id="pass-ok">✓ Password changed successfully</div>
+        <button class="btn btn-primary" onclick="changeOwnerPassword()" style="margin-top:8px">Update Password</button>
       </div>
 
-      <!-- PRODUCTS TAB -->
-      <div id="stab-products-content" style="display:none">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="ptab ptab-active" id="ptab-noodle" onclick="prodTab('noodle',this)">Noodles</button>
-          <button class="ptab" id="ptab-addon" onclick="prodTab('addon',this)">Add-ons</button>
-        </div>
-        <div class="section-label" id="prod-section-lbl">Noodle Products — PHN (Selling Price)</div>
-        <div class="card"><div id="products-list"></div></div>
-        <div class="card" id="add-prod-form">
-          <div style="font-size:14px;font-weight:700;margin-bottom:12px">➕ Add / Edit Product</div>
-          <input type="hidden" id="np-edit-id">
-          <input type="hidden" id="np-cat" value="noodle">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-            <div class="field"><label>Product ID / Code</label><input type="text" id="np-id" placeholder="e.g. MIKI-XXL"></div>
-            <div class="field"><label>Display Name</label><input type="text" id="np-name" placeholder="e.g. Miki XXL"></div>
-            <div class="field"><label>PHN — Selling Price (₱)</label><input type="number" id="np-phn" placeholder="0"></div>
-            <div class="field" id="np-pck-field"><label>PCK — Packaging Cost (₱)</label><input type="number" id="np-pck" placeholder="0"></div>
-          </div>
-          <div class="err" id="np-err" style="display:none"></div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-primary" onclick="saveProduct()" style="flex:1">Save Product</button>
-            <button class="btn btn-ghost" onclick="resetProdForm()" style="flex:1">Clear</button>
-          </div>
-        </div>
+      <!-- Staff Management -->
+      <div class="section-label" style="margin-top:20px">Staff Accounts</div>
+      <div class="card" id="staff-list-card">
+        <div id="staff-accounts-list"></div>
+        <button class="btn btn-green" onclick="showAddStaff()" style="margin-top:12px;width:100%">+ Add Staff Account</button>
       </div>
-
-      <!-- BILAO SIZES TAB -->
-      <div id="stab-bilao-content" style="display:none">
-        <div class="section-label">Bilao Packaging &amp; Cost per Size</div>
-        <div class="card"><div id="bilao-list"></div></div>
-        <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--text-2)">
-          ℹ️ PCK = packaging cost per bilao (e.g. box). Cost = raw materials cost (noodle + ingredients per bilao).
+      <div class="card" id="add-staff-form" style="display:none">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">New Staff Account</div>
+        <div class="field"><label>Username</label><input type="text" id="new-staff-name" placeholder="e.g. maria_fv"></div>
+        <div class="field"><label>PIN</label><input type="password" id="new-staff-pin" placeholder="4-6 digits" maxlength="6" inputmode="numeric"></div>
+        <div class="field">
+          <label>Branch</label>
+          <select id="new-staff-branch">
+            <option value="">Select branch...</option>
+            <option>Fairview</option><option>Zabarte</option><option>Don Jose</option>
+          </select>
         </div>
-      </div>
-
-      <!-- BRAND TAB -->
-      <div id="stab-brand-content" style="display:none">
-        <div class="section-label">Brand Photo / Logo</div>
-        <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <div><img id="brand-avatar" src="" alt="Logo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--orange);display:none"><div id="brand-avatar-placeholder" style="width:72px;height:72px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:28px">🏪</div></div>
-          <div style="flex:1">
-            <label style="cursor:pointer;display:inline-block;padding:8px 16px;background:var(--orange);color:#fff;border-radius:8px;font-size:13px;font-weight:700">📷 Upload Image<input type="file" accept="image/*" style="display:none" onchange="uploadBrandPhoto(this)"></label>
-            <button class="btn" style="margin-left:8px;padding:8px 14px;font-size:13px" onclick="removeBrandPhoto()">Remove</button>
-          </div>
+        <div class="err" id="add-staff-err" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary" onclick="addStaffAccount()" style="flex:1">Save Account</button>
+          <button class="btn" onclick="hideAddStaff()" style="flex:1">Cancel</button>
         </div>
       </div>
     </div>
@@ -653,7 +588,6 @@ function saveToken(){
   if(!t.startsWith('ghp_')){ document.getElementById('token-err').style.display='block'; return; }
   localStorage.setItem('doms_gh_token', t);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.body.classList.remove('hide-login-bg');
   document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
 }
@@ -675,12 +609,10 @@ async function ghGet() {
   } catch(e) { return { entries: [] }; }
 }
 
-async function ghSave(dataObj) {
+async function ghSave(entries) {
   const existing = await ghGet();
-  // Merge with existing to avoid overwriting other keys
-  const merged = Object.assign({}, existing.data||{}, dataObj);
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(merged, null, 2))));
-  const body = { message: 'Update data', content };
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(entries, null, 2))));
+  const body = { message: 'Update sales data', content };
   if (existing.sha) body.sha = existing.sha;
   const r = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${DATA_FILE}`, {
     method: 'PUT',
@@ -726,9 +658,8 @@ function showSaving(on) {
   el.style.display = on ? 'block' : 'none';
 }
 
-// ── CONFIG DEFAULTS (overridden by GitHub data.json) ─────
-const DEFAULT_BRANCHES=[{id:'br-01',name:'Fairview',ohd:4300},{id:'br-02',name:'Zabarte',ohd:3200},{id:'br-03',name:'Don Jose',ohd:4000}];
-const DEFAULT_PRODUCTS=[
+const BRANCHES=[{id:'br-01',name:'Fairview',ohd:4300},{id:'br-02',name:'Zabarte',ohd:3200},{id:'br-03',name:'Don Jose',ohd:4000}];
+const PRODUCTS=[
   {id:'BG-S',cat:'noodle',name:'BG-S',phn:156},{id:'BG-M',cat:'noodle',name:'BG-M',phn:284},{id:'BG-L',cat:'noodle',name:'BG-L',phn:414},{id:'BG-XL',cat:'noodle',name:'BG-XL',phn:549},
   {id:'MIKI-S',cat:'noodle',name:'MIKI-S',phn:164},{id:'MIKI-M',cat:'noodle',name:'MIKI-M',phn:300},{id:'MIKI-L',cat:'noodle',name:'MIKI-L',phn:438},{id:'MIKI-XL',cat:'noodle',name:'MIKI-XL',phn:581},
   {id:'PALABOK-S',cat:'noodle',name:'PALABOK-S',phn:166},{id:'PALABOK-M',cat:'noodle',name:'PALABOK-M',phn:305},{id:'PALABOK-L',cat:'noodle',name:'PALABOK-L',phn:445},{id:'PALABOK-XL',cat:'noodle',name:'PALABOK-XL',phn:581},
@@ -745,72 +676,6 @@ const DEFAULT_PRODUCTS=[
   {id:'LECHE FLAN',cat:'addon',name:'Leche Flan',phn:60,pck:10},{id:'GULAMAN',cat:'addon',name:'Gulaman',phn:40,pck:25},
   {id:'WATER',cat:'addon',name:'Water',phn:13},{id:'COKE',cat:'addon',name:'Coke',phn:38},{id:'KOPIKO',cat:'addon',name:'Kopiko',phn:19}
 ];
-const DEFAULT_BILAO_SIZES={
-  S:{pck:40,cost:25,noodles:['BG-S','MIKI-S','PALABOK-S','SPAG-S','MAC-S','LUGLOG-S','P SISIG-S','JAPCHAE-S']},
-  M:{pck:46,cost:29,noodles:['BG-M','MIKI-M','PALABOK-M','PC-M','SPAG-M','MAC-M','LUGLOG-M','P SISIG-M','JAPCHAE-M']},
-  L:{pck:53,cost:35,noodles:['BG-L','MIKI-L','PALABOK-L','PC-L','SPAG-L','MAC-L','LUGLOG-L','P SISIG-L']},
-  XL:{pck:63,cost:40,noodles:['BG-XL','MIKI-XL','PALABOK-XL','SPAG-XL','MAC-XL','LUGLOG-XL','P SISIG-XL']},
-};
-// Live config (loaded from GitHub, falls back to defaults)
-let BRANCHES=[...DEFAULT_BRANCHES];
-let PRODUCTS=[...DEFAULT_PRODUCTS];
-let BILAO_SIZES={...DEFAULT_BILAO_SIZES};
-// Accounts stored in GitHub
-let _accounts=[]; // [{username,pin,branch,role:'staff'|'owner'}]
-
-// Config loaders
-function getAccounts(){ return _accounts; }
-async function saveAccounts(list){
-  _accounts=list;
-  localStorage.setItem('doms_accounts_cache',JSON.stringify(list));
-  await ghSave({accounts:list});
-}
-function getStaffAccounts(){ return _accounts.filter(a=>a.role==='staff'); }
-function getOwnerAccounts(){ return _accounts.filter(a=>a.role==='owner'); }
-function saveStaffAccounts(list){
-  // legacy compat — merge into _accounts
-  const owners=_accounts.filter(a=>a.role==='owner');
-  _accounts=[...owners,...list.map(a=>({...a,role:'staff'}))];
-  localStorage.setItem('doms_accounts_cache',JSON.stringify(_accounts));
-  ghSave({accounts:_accounts});
-}
-
-async function loadConfig(){
-  try{
-    const {data}=await ghGet();
-    if(data?.products?.length) PRODUCTS=data.products;
-    if(data?.branches?.length) BRANCHES=data.branches;
-    if(data?.bilaoSizes) BILAO_SIZES=data.bilaoSizes;
-    if(data?.accounts?.length){
-      _accounts=data.accounts;
-      localStorage.setItem('doms_accounts_cache',JSON.stringify(_accounts));
-    } else {
-      // Migrate old localStorage staff accounts
-      const cached=localStorage.getItem('doms_accounts_cache');
-      if(cached) _accounts=JSON.parse(cached);
-      else{
-        const old=localStorage.getItem('doms_staff_accounts');
-        if(old){
-          const staff=JSON.parse(old).map(a=>({...a,role:'staff'}));
-          _accounts=staff;
-        }
-      }
-    }
-    // Cache config locally
-    localStorage.setItem('doms_config_cache',JSON.stringify({products:PRODUCTS,branches:BRANCHES,bilaoSizes:BILAO_SIZES}));
-  }catch(e){
-    // Fallback to local cache
-    const cc=localStorage.getItem('doms_config_cache');
-    if(cc){const c=JSON.parse(cc);if(c.products)PRODUCTS=c.products;if(c.branches)BRANCHES=c.branches;if(c.bilaoSizes)BILAO_SIZES=c.bilaoSizes;}
-    const ac=localStorage.getItem('doms_accounts_cache');
-    if(ac)_accounts=JSON.parse(ac);
-  }
-}
-
-async function saveConfig(){
-  await ghSave({products:PRODUCTS,branches:BRANCHES,bilaoSizes:BILAO_SIZES});
-  localStorage.setItem('doms_config_cache',JSON.stringify({products:PRODUCTS,branches:BRANCHES,bilaoSizes:BILAO_SIZES}));
-}
 const VAT_RATE=0.12,OWNER_PASS='owner123';
 // Staff accounts stored in localStorage (managed by owner)
 function getStaffAccounts(){
@@ -829,12 +694,8 @@ function setRole(r,el){
 }
 
 function openLogin(){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-splash').style.display='none';
   document.getElementById('screen-login').style.display='block';
-  document.body.classList.remove('hide-login-bg');
-  const loginBg=document.querySelector('.login-bg');
-  if(loginBg) loginBg.style.display='';
   document.getElementById('login-overlay').classList.add('show');
 }
 // ── SESSION MANAGEMENT ────────────────────────────────────
@@ -874,24 +735,20 @@ function doLogin(){
   const isOwner=document.querySelectorAll('.role-tab')[1].classList.contains('active');
   const err=document.getElementById('login-err');
   err.style.display='none';
-  const username=(isOwner
-    ?(document.getElementById('owner-username').value||'').trim()
-    :(document.getElementById('staff-username').value||'').trim());
-  const pin=isOwner
-    ?(document.getElementById('owner-pass').value||'')
-    :(document.getElementById('staff-pin').value||'');
-  if(!pin){err.textContent='Please enter your PIN / password.';err.style.display='block';return;}
   if(isOwner){
-    // Check owner accounts in GitHub first, fallback to legacy password (no username needed)
-    const ownerAcct=username?getOwnerAccounts().find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin):null;
-    const legacyOk=pin===getOwnerPass(); // legacy always allowed as fallback
-    if(ownerAcct||legacyOk){
-      saveSession('owner',null,ownerAcct?.username||'Owner');
+    if(document.getElementById('owner-pass').value===getOwnerPass()){
+      saveSession('owner',null,null);
       resetInactivityTimer();
       showScreen('screen-owner');initOwnerDashboard();
-    } else {err.textContent='Incorrect username or PIN.';err.style.display='block';}
+    }
+    else{err.textContent='Incorrect password.';err.style.display='block';}
   } else {
-    const account=getStaffAccounts().find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin);
+    const username=(document.getElementById('staff-username').value||'').trim();
+    const pin=document.getElementById('staff-pin').value;
+    if(!username){err.textContent='Please enter your username.';err.style.display='block';return;}
+    if(!pin){err.textContent='Please enter your PIN.';err.style.display='block';return;}
+    const accounts=getStaffAccounts();
+    const account=accounts.find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin);
     if(account){
       currentBranch=account.branch;
       currentStaff=account.username;
@@ -907,24 +764,18 @@ function logout(){
   clearSession();
   if(inactivityTimer) clearTimeout(inactivityTimer);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.body.classList.remove('hide-login-bg');
   document.getElementById('screen-login').style.display='block';
-  document.getElementById('screen-splash').style.display='none';
-  const loginBg=document.querySelector('.login-bg');
-  if(loginBg) loginBg.style.display='';
   document.getElementById('login-overlay').classList.add('show');
   document.getElementById('staff-username').value='';
   document.getElementById('staff-pin').value='';
-  document.getElementById('owner-username').value='';
   document.getElementById('owner-pass').value='';
 }
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('login-overlay').classList.remove('show');
   document.getElementById('screen-login').style.display='none';
   document.getElementById('screen-splash').style.display='none';
-  document.getElementById('login-overlay').classList.remove('show');
-  document.body.classList.add('hide-login-bg');
-  document.getElementById(id).classList.add('active');
 }
 
 function initStaffForm(){
@@ -943,7 +794,13 @@ function buildGrid(gid,prods){
   document.getElementById(gid).innerHTML=prods.map(p=>`<div class="prod-cell"><label>${p.name}</label><input type="number" min="0" step="1" inputmode="numeric" id="qty-${p.id}" placeholder="0" oninput="onQtyChange()"></div>`).join('');
 }
 
-// ── BILAO SIZE GROUPS — now loaded from BILAO_SIZES (dynamic) ────
+// ── BILAO SIZE GROUPS (noodle products → bilao size) ─────
+const BILAO_SIZES={
+  S:{pck:40,cost:25,noodles:['BG-S','MIKI-S','PALABOK-S','SPAG-S','MAC-S','LUGLOG-S','P SISIG-S','JAPCHAE-S']},
+  M:{pck:46,cost:29,noodles:['BG-M','MIKI-M','PALABOK-M','PC-M','SPAG-M','MAC-M','LUGLOG-M','P SISIG-M','JAPCHAE-M']},
+  L:{pck:53,cost:35,noodles:['BG-L','MIKI-L','PALABOK-L','PC-L','SPAG-L','MAC-L','LUGLOG-L','P SISIG-L']},
+  XL:{pck:63,cost:40,noodles:['BG-XL','MIKI-XL','PALABOK-XL','SPAG-XL','MAC-XL','LUGLOG-XL','P SISIG-XL']},
+};
 
 function getBilaoQtyFromNoodles(){
   // For each bilao size, sum the qty of all noodles of that size
@@ -1172,7 +1029,7 @@ async function renderStaffHistory(){
 }
 
 function ownerTab(tab,el){
-  if(tab==='settings'){settingsTab('users',document.getElementById('stab-users'));}
+  if(tab==='settings'){renderStaffAccounts();loadBrandPhoto();}
   ['dashboard','reports','products','settings'].forEach(t=>{const el=document.getElementById('owner-'+t);if(el)el.style.display=t===tab?'block':'none';});
   document.querySelectorAll('#screen-owner .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
   if(tab==='reports')renderReports();
@@ -1423,15 +1280,6 @@ function setDashBranch(branch,el){
 }
 
 async function initOwnerDashboard(){
-  // Show loading state while fetching
-  const dash=document.getElementById('owner-dashboard');
-  if(dash&&!dash.querySelector('#dash-loading')){
-    const loader=document.createElement('div');
-    loader.id='dash-loading';
-    loader.style.cssText='text-align:center;padding:40px;color:var(--text-2);font-size:15px;font-weight:600';
-    loader.innerHTML='⏳ Loading dashboard...';
-    dash.prepend(loader);
-  }
   const allData=await getEntries();
   let allEntries=allData.filter(e=>{
     const now=new Date(),today=now.toISOString().split('T')[0];
@@ -1526,9 +1374,6 @@ async function initOwnerDashboard(){
       <td style="text-align:center"><button onclick="openEditModal(_editEntries['${e.id}'])" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️</button></td>
     </tr>`;
   }).join(''):'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-3)">No entries yet.</td></tr>';
-  // Remove loading indicator
-  const loader=document.getElementById('dash-loading');
-  if(loader) loader.remove();
 }
 
 async function renderReports(){
@@ -1658,270 +1503,107 @@ function seedDemo(){
 }
 
 
-// ── SETTINGS TAB CONTROLLER ──────────────────────────────
-function settingsTab(name,el){
-  ['users','branches','products','bilao','brand'].forEach(t=>{
-    const c=document.getElementById(`stab-${t}-content`);
-    const b=document.getElementById(`stab-${t}`);
-    if(c)c.style.display=t===name?'block':'none';
-    if(b)b.classList.toggle('stab-active',t===name);
-  });
-  if(name==='users')renderUsersTab();
-  if(name==='branches')renderBranchesTab();
-  if(name==='products'){currentProdCat='noodle';renderProductsTab();}
-  if(name==='bilao')renderBilaoTab();
-  if(name==='brand')loadBrandPhoto();
+function changeOwnerPassword(){
+  const old=document.getElementById('set-old-pass').value;
+  const nw=document.getElementById('set-new-pass').value;
+  const cf=document.getElementById('set-confirm-pass').value;
+  const err=document.getElementById('pass-err');
+  const ok=document.getElementById('pass-ok');
+  err.style.display='none'; ok.style.display='none';
+  const storedPass=localStorage.getItem('doms_owner_pass')||OWNER_PASS;
+  if(old!==storedPass){err.textContent='Current password is incorrect.';err.style.display='block';return;}
+  if(nw.length<4){err.textContent='New password must be at least 4 characters.';err.style.display='block';return;}
+  if(nw!==cf){err.textContent='New passwords do not match.';err.style.display='block';return;}
+  localStorage.setItem('doms_owner_pass',nw);
+  document.getElementById('set-old-pass').value='';
+  document.getElementById('set-new-pass').value='';
+  document.getElementById('set-confirm-pass').value='';
+  ok.style.display='block';
 }
 
-// ── USERS TAB ─────────────────────────────────────────────
-function renderUsersTab(){
-  // Owner accounts
-  const owners=getOwnerAccounts();
-  const oel=document.getElementById('owner-accounts-list');
-  if(oel){
-    if(!owners.length){
-      oel.innerHTML='<div style="color:var(--text-2);font-size:13px;padding:8px 0">No owner accounts yet. Add one below.<br><small style="color:var(--text-3)">Legacy: use password login until you add an owner account.</small></div>';
-    } else {
-      oel.innerHTML=owners.map((a,i)=>`
-        <div class="config-row">
-          <div class="name">👑 ${a.username}</div>
-          <div class="detail">Owner</div>
-          <div class="acts">
-            <button onclick="editUserPin('${a.username}')" style="background:var(--orange-light);color:var(--orange-dark);border-color:var(--orange-light)">Change PIN</button>
-            <button onclick="deleteUser('${a.username}')" style="background:var(--red-light);color:var(--red-text);border-color:var(--red-light)">Remove</button>
-          </div>
-        </div>`).join('');
-    }
-  }
-  // Staff accounts
-  const staff=getStaffAccounts();
-  const sel=document.getElementById('staff-accounts-list');
-  if(sel){
-    if(!staff.length){
-      sel.innerHTML='<div style="color:var(--text-2);font-size:13px;padding:8px 0">No staff accounts yet.</div>';
-    } else {
-      sel.innerHTML=staff.map((a,i)=>`
-        <div class="config-row">
-          <div class="name">👤 ${a.username}</div>
-          <div class="detail">${a.branch||'—'}</div>
-          <div class="acts">
-            <button onclick="editUserPin('${a.username}')" style="background:var(--bg);border-color:var(--border)">Change PIN</button>
-            <button onclick="deleteUser('${a.username}')" style="background:var(--red-light);color:var(--red-text);border-color:var(--red-light)">Remove</button>
-          </div>
-        </div>`).join('');
-    }
-  }
-  // Populate branch select in add form
-  const bsel=document.getElementById('new-user-branch');
-  if(bsel){
-    bsel.innerHTML='<option value="">Select branch...</option>'+BRANCHES.map(b=>`<option>${b.name}</option>`).join('');
-  }
+function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
+
+function renderStaffAccounts(){
+  const list=getStaffAccounts();
+  const el=document.getElementById('staff-accounts-list');
+  if(!list.length){el.innerHTML='<div style="color:var(--text-2);font-size:13px;padding:8px 0">No staff accounts yet. Add one below.</div>';return;}
+  el.innerHTML=list.map((a,i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${a.username}</div>
+        <div style="font-size:12px;color:var(--text-2)">${a.branch}</div>
+      </div>
+      <button class="btn" style="padding:6px 12px;font-size:12px" onclick="editStaffPin(${i})">Change PIN</button>
+      <button class="btn" style="padding:6px 12px;font-size:12px;color:var(--red)" onclick="deleteStaff(${i})">Remove</button>
+    </div>
+  `).join('');
 }
 
-function showAddUser(role){
-  document.getElementById('add-user-form').style.display='block';
-  document.getElementById('new-user-role').value=role;
-  document.getElementById('add-user-title').textContent=role==='owner'?'New Owner Account':'New Staff Account';
-  document.getElementById('new-user-branch-field').style.display=role==='staff'?'block':'none';
-  document.getElementById('new-user-name').value='';
-  document.getElementById('new-user-pin').value='';
-  document.getElementById('add-user-err').style.display='none';
-  document.getElementById('new-user-name').focus();
+function showAddStaff(){
+  document.getElementById('add-staff-form').style.display='block';
+  document.getElementById('new-staff-name').focus();
 }
-function hideAddUser(){
-  document.getElementById('add-user-form').style.display='none';
+function hideAddStaff(){
+  document.getElementById('add-staff-form').style.display='none';
+  document.getElementById('new-staff-name').value='';
+  document.getElementById('new-staff-pin').value='';
+  document.getElementById('new-staff-branch').value='';
+  document.getElementById('add-staff-err').style.display='none';
 }
-async function addUser(){
-  const role=document.getElementById('new-user-role').value;
-  const name=(document.getElementById('new-user-name').value||'').trim();
-  const pin=(document.getElementById('new-user-pin').value||'').trim();
-  const branch=role==='staff'?document.getElementById('new-user-branch').value:'';
-  const err=document.getElementById('add-user-err');
+
+function addStaffAccount(){
+  const name=(document.getElementById('new-staff-name').value||'').trim();
+  const pin=document.getElementById('new-staff-pin').value.trim();
+  const branch=document.getElementById('new-staff-branch').value;
+  const err=document.getElementById('add-staff-err');
   err.style.display='none';
   if(!name){err.textContent='Username is required.';err.style.display='block';return;}
-  if(pin.length<4){err.textContent='PIN must be 4–6 digits.';err.style.display='block';return;}
-  if(role==='staff'&&!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
-  if(_accounts.find(a=>a.username.toLowerCase()===name.toLowerCase())){
+  if(pin.length<4){err.textContent='PIN must be 4-6 digits.';err.style.display='block';return;}
+  if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
+  const list=getStaffAccounts();
+  if(list.find(a=>a.username.toLowerCase()===name.toLowerCase())){
     err.textContent='Username already exists.';err.style.display='block';return;
   }
-  const newAcct={username:name,pin,branch,role};
-  const updated=[..._accounts,newAcct];
-  await saveAccounts(updated);
-  hideAddUser();
-  renderUsersTab();
+  list.push({username:name,pin,branch});
+  saveStaffAccounts(list);
+  hideAddStaff();
+  renderStaffAccounts();
 }
-async function deleteUser(username){
-  if(!confirm(`Remove account "${username}"?`)) return;
-  const updated=_accounts.filter(a=>a.username!==username);
-  await saveAccounts(updated);
-  renderUsersTab();
+
+function deleteStaff(i){
+  if(!confirm('Remove this staff account?')) return;
+  const list=getStaffAccounts();
+  list.splice(i,1);
+  saveStaffAccounts(list);
+  renderStaffAccounts();
 }
-async function editUserPin(username){
-  const newPin=prompt(`New PIN for ${username}:`);
+
+function editStaffPin(i){
+  const list=getStaffAccounts();
+  const newPin=prompt(`New PIN for ${list[i].username}:`);
   if(!newPin) return;
-  if(newPin.trim().length<4){alert('PIN must be at least 4 digits.');return;}
-  const updated=_accounts.map(a=>a.username===username?{...a,pin:newPin.trim()}:a);
-  await saveAccounts(updated);
-  renderUsersTab();
+  if(newPin.length<4){alert('PIN must be at least 4 digits.');return;}
+  list[i].pin=newPin.trim();
+  saveStaffAccounts(list);
+  renderStaffAccounts();
 }
 
-// Legacy owner password (for first-time / no owner accounts)
-function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
-function changeOwnerPassword(){}// legacy stub
-
-// ── BRANCHES TAB ──────────────────────────────────────────
-function renderBranchesTab(){
-  const el=document.getElementById('branches-list');
-  if(!el) return;
-  el.innerHTML=BRANCHES.length?BRANCHES.map(b=>`
-    <div class="config-row">
-      <div class="name">🏪 ${b.name}</div>
-      <div class="detail">OHD: ₱${b.ohd.toLocaleString()}</div>
-      <div class="acts">
-        <button onclick="editBranch('${b.id}')" style="background:var(--orange-light);color:var(--orange-dark);border-color:var(--orange-light)">Edit</button>
-        <button onclick="deleteBranch('${b.id}')" style="background:var(--red-light);color:var(--red-text);border-color:var(--red-light)">Remove</button>
-      </div>
-    </div>`).join(''):'<div style="color:var(--text-2);font-size:13px;padding:8px">No branches yet.</div>';
-}
-async function saveBranch(){
-  const name=(document.getElementById('nb-name').value||'').trim();
-  const ohd=parseFloat(document.getElementById('nb-ohd').value)||0;
-  const editId=document.getElementById('nb-edit-id').value;
-  const err=document.getElementById('nb-err');
-  err.style.display='none';
-  if(!name){err.textContent='Branch name is required.';err.style.display='block';return;}
-  if(editId){
-    BRANCHES=BRANCHES.map(b=>b.id===editId?{...b,name,ohd}:b);
-  } else {
-    if(BRANCHES.find(b=>b.name.toLowerCase()===name.toLowerCase())){
-      err.textContent='Branch already exists.';err.style.display='block';return;
-    }
-    BRANCHES.push({id:'br-'+Date.now(),name,ohd});
-  }
-  await saveConfig();
-  resetBranchForm();
-  renderBranchesTab();
-}
-function editBranch(id){
-  const b=BRANCHES.find(x=>x.id===id);
-  if(!b) return;
-  document.getElementById('nb-name').value=b.name;
-  document.getElementById('nb-ohd').value=b.ohd;
-  document.getElementById('nb-edit-id').value=id;
-}
-async function deleteBranch(id){
-  if(!confirm('Remove this branch?')) return;
-  BRANCHES=BRANCHES.filter(b=>b.id!==id);
-  await saveConfig();
-  renderBranchesTab();
-}
-function resetBranchForm(){
-  document.getElementById('nb-name').value='';
-  document.getElementById('nb-ohd').value='';
-  document.getElementById('nb-edit-id').value='';
-  document.getElementById('nb-err').style.display='none';
-}
-
-// ── PRODUCTS TAB ──────────────────────────────────────────
-let currentProdCat='noodle';
-function prodTab(cat,el){
-  currentProdCat=cat;
-  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('ptab-active'));
-  el.classList.add('ptab-active');
-  document.getElementById('np-cat').value=cat;
-  const isAddon=cat==='addon';
-  document.getElementById('np-pck-field').style.display=isAddon?'block':'none';
-  document.getElementById('prod-section-lbl').textContent=isAddon?'Add-on Products — PHN (Selling Price) + PCK (Packaging)':'Noodle Products — PHN (Selling Price)';
-  renderProductsTab();
-  resetProdForm();
-}
-function renderProductsTab(){
-  const el=document.getElementById('products-list');
-  if(!el) return;
-  const prods=PRODUCTS.filter(p=>p.cat===currentProdCat);
-  el.innerHTML=prods.length?prods.map(p=>`
-    <div class="config-row">
-      <div style="flex:1"><div class="name">${p.name}</div><div style="font-size:11px;color:var(--text-3)">${p.id}</div></div>
-      <div class="detail">₱${p.phn||0}${p.pck?` / PCK ₱${p.pck}`:''}</div>
-      <div class="acts">
-        <button onclick="editProduct('${p.id}')" style="background:var(--orange-light);color:var(--orange-dark);border-color:var(--orange-light)">Edit</button>
-        <button onclick="deleteProduct('${p.id}')" style="background:var(--red-light);color:var(--red-text);border-color:var(--red-light)">Del</button>
-      </div>
-    </div>`).join(''):'<div style="color:var(--text-2);font-size:13px;padding:8px">No products in this category.</div>';
-}
-async function saveProduct(){
-  const id=(document.getElementById('np-id').value||'').trim().toUpperCase();
-  const name=(document.getElementById('np-name').value||'').trim();
-  const phn=parseFloat(document.getElementById('np-phn').value)||0;
-  const pck=parseFloat(document.getElementById('np-pck').value)||0;
-  const cat=document.getElementById('np-cat').value;
-  const editId=document.getElementById('np-edit-id').value;
-  const err=document.getElementById('np-err');
-  err.style.display='none';
-  if(!id||!name){err.textContent='ID and Name are required.';err.style.display='block';return;}
-  const prod={id,cat,name,phn,...(pck>0?{pck}:{})};
-  if(editId){
-    PRODUCTS=PRODUCTS.map(p=>p.id===editId?prod:p);
-  } else {
-    if(PRODUCTS.find(p=>p.id===id)){err.textContent='Product ID already exists.';err.style.display='block';return;}
-    PRODUCTS.push(prod);
-  }
-  await saveConfig();
-  resetProdForm();
-  renderProductsTab();
-}
-function editProduct(id){
-  const p=PRODUCTS.find(x=>x.id===id);
-  if(!p) return;
-  document.getElementById('np-id').value=p.id;
-  document.getElementById('np-name').value=p.name;
-  document.getElementById('np-phn').value=p.phn||0;
-  document.getElementById('np-pck').value=p.pck||0;
-  document.getElementById('np-edit-id').value=id;
-}
-async function deleteProduct(id){
-  if(!confirm(`Remove product "${id}"?`)) return;
-  PRODUCTS=PRODUCTS.filter(p=>p.id!==id);
-  await saveConfig();
-  renderProductsTab();
-}
-function resetProdForm(){
-  ['np-id','np-name','np-phn','np-pck','np-edit-id'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
-  document.getElementById('np-err').style.display='none';
-}
-
-// ── BILAO SIZES TAB ───────────────────────────────────────
-function renderBilaoTab(){
-  const el=document.getElementById('bilao-list');
-  if(!el) return;
-  el.innerHTML=Object.entries(BILAO_SIZES).map(([size,info])=>`
-    <div class="config-row">
-      <div class="name">Bilao ${size}</div>
-      <div style="flex:1;font-size:12px;color:var(--text-2)">PCK: ₱${info.pck} &nbsp;|&nbsp; Material Cost: ₱${info.cost}</div>
-      <div class="acts">
-        <button onclick="editBilaoSize('${size}')" style="background:var(--orange-light);color:var(--orange-dark);border-color:var(--orange-light)">Edit</button>
-      </div>
-    </div>`).join('');
-}
-async function editBilaoSize(size){
-  const info=BILAO_SIZES[size];
-  const newPck=prompt(`Bilao ${size} — Packaging cost (PCK) ₱:`,info.pck);
-  if(newPck===null) return;
-  const newCost=prompt(`Bilao ${size} — Material/raw cost ₱:`,info.cost);
-  if(newCost===null) return;
-  BILAO_SIZES[size]={...info,pck:parseFloat(newPck)||info.pck,cost:parseFloat(newCost)||info.cost};
-  await saveConfig();
-  renderBilaoTab();
-}
-
-// ── BRAND PHOTO ───────────────────────────────────────────
 function uploadBrandPhoto(input){
-  const file=input.files[0];if(!file)return;
+  const file=input.files[0];
+  if(!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{localStorage.setItem('doms_brand_photo',e.target.result);loadBrandPhoto();};
+  reader.onload=e=>{
+    localStorage.setItem('doms_brand_photo',e.target.result);
+    loadBrandPhoto();
+  };
   reader.readAsDataURL(file);
 }
-function removeBrandPhoto(){localStorage.removeItem('doms_brand_photo');loadBrandPhoto();}
+
+function removeBrandPhoto(){
+  localStorage.removeItem('doms_brand_photo');
+  loadBrandPhoto();
+}
+
 function loadBrandPhoto(){
   const photo=localStorage.getItem('doms_brand_photo');
   const img=document.getElementById('brand-avatar');
@@ -1932,53 +1614,25 @@ function loadBrandPhoto(){
   }
 }
 
-function populateBranchSelects(){
-  const opts=BRANCHES.map(b=>`<option>${b.name}</option>`).join('');
-  ['report-branch','prod-branch-filter'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.innerHTML='<option value="all">All Branches</option>'+opts;}
-  });
-  // Also update dashboard branch filter buttons
-  const dbf=document.querySelector('[id^="dbf-"]')?.parentElement;
-  if(dbf){
-    const existing=dbf.querySelectorAll('.dbf-btn:not(#dbf-all)');
-    existing.forEach(b=>b.remove());
-    BRANCHES.forEach(b=>{
-      const btn=document.createElement('button');
-      btn.id=`dbf-${b.name}`;
-      btn.className='dbf-btn';
-      btn.textContent=b.name;
-      btn.onclick=()=>setDashBranch(b.name,btn);
-      dbf.appendChild(btn);
-    });
-  }
-}
-
-window.onload=async function(){
+window.onload=function(){
   if(!localStorage.getItem('doms_gh_token')){ showScreen('screen-token'); return; }
-  // Load config from GitHub (products, branches, bilao sizes, accounts)
-  await loadConfig();
-  populateBranchSelects();
   // Restore session on refresh
   const saved=sessionStorage.getItem(SESSION_KEY);
-  let sessionRestored=false;
   if(saved){
     try{
       const s=JSON.parse(saved);
       if(Date.now()-s.ts < INACTIVITY_MS){
         if(s.role==='owner'){
-          showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();sessionRestored=true;
+          showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();
         } else if(s.role==='staff'&&s.branch){
           currentBranch=s.branch;currentStaff=s.staff;
           document.getElementById('staff-branch-label').textContent=s.branch;
           document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
-          showScreen('screen-staff');initStaffForm();resetInactivityTimer();sessionRestored=true;
+          showScreen('screen-staff');initStaffForm();resetInactivityTimer();
         } else { clearSession(); }
       } else { clearSession(); }
     }catch(e){ clearSession(); }
   }
-  // If no valid session, show login screen
-  if(!sessionRestored){ openLogin(); }
   const now=new Date().toISOString().slice(0,7);
   ['hist-month','report-month','prod-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=now;});
   document.getElementById('report-month').addEventListener('change',renderReports);
