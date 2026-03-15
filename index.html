@@ -277,17 +277,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div id="staff-fields">
     <div class="field">
-      <label>Branch</label>
-      <select id="staff-branch">
-        <option value="">Select your branch...</option>
-        <option>Fairview</option>
-        <option>Zabarte</option>
-        <option>Don Jose</option>
-      </select>
+      <label>Username</label>
+      <input type="text" id="staff-username" placeholder="Enter your username" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <div class="field">
-      <label>Staff PIN</label>
-      <input type="password" id="staff-pin" placeholder="Enter 4-digit PIN" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
+      <label>PIN</label>
+      <input type="password" id="staff-pin" placeholder="Enter your PIN" maxlength="6" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
   </div>
   <div id="owner-fields" style="display:none">
@@ -707,6 +702,7 @@ function logout(){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
+  document.getElementById('staff-username').value='';
   document.getElementById('staff-pin').value='';
   document.getElementById('owner-pass').value='';
 }
