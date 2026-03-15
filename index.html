@@ -298,7 +298,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div class="err" id="login-err">Incorrect PIN or password.</div>
   <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Sign In</button>
-  <p style="font-size:11px;color:var(--text-3);text-align:center;margin-top:14px">Staff PIN: <b>1234</b> &nbsp;·&nbsp; Owner PW: <b>owner123</b></p>
+
 </div>
 </div>
 </div>
@@ -396,19 +396,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
 
       <div class="section-label">Top Sellers (Optional)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div>
-          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥇 #1 Top Seller</div>
-          <input id="top1" type="text" placeholder="e.g. PUTO" style="width:100%">
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥈 #2 Top Seller</div>
-          <input id="top2" type="text" placeholder="e.g. BILAO-S" style="width:100%">
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥉 #3 Top Seller</div>
-          <input id="top3" type="text" placeholder="e.g. PALABOK-S" style="width:100%">
-        </div>
+      <div class="field">
+        <label>🥇 #1 Top Seller</label>
+        <input id="top1" type="text" placeholder="Auto-filled from quantities above" oninput="this.dataset.manual=1">
+      </div>
+      <div class="field">
+        <label>🥈 #2 Top Seller</label>
+        <input id="top2" type="text" placeholder="Auto-filled from quantities above" oninput="this.dataset.manual=1">
+      </div>
+      <div class="field">
+        <label>🥉 #3 Top Seller</label>
+        <input id="top3" type="text" placeholder="Auto-filled from quantities above" oninput="this.dataset.manual=1">
       </div>
 
     </div>
@@ -442,6 +440,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="tab tab-owner active" onclick="ownerTab('dashboard',this)">Dashboard</div>
       <div class="tab tab-owner" onclick="ownerTab('reports',this)">Reports</div>
       <div class="tab tab-owner" onclick="ownerTab('products',this)">Products</div>
+      <div class="tab tab-owner" onclick="ownerTab('settings',this)">⚙ Settings</div>
     </div>
 
     <div id="owner-dashboard">
@@ -495,6 +494,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div class="card"><div class="bar-chart" id="product-sales-chart"></div></div>
       <div id="product-table-wrap" style="margin-top:12px"></div>
+    </div>
+
+    <div id="owner-settings" style="display:none">
+      <!-- Profile Picture -->
+      <div class="section-label">Brand Profile</div>
+      <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="position:relative">
+          <img id="brand-avatar" src="" alt="Logo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--orange);display:none">
+          <div id="brand-avatar-placeholder" style="width:72px;height:72px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:28px">🏪</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">Brand Photo / Logo</div>
+          <label style="cursor:pointer;display:inline-block;padding:8px 16px;background:var(--orange);color:#fff;border-radius:8px;font-size:13px;font-weight:700">
+            📷 Upload Image
+            <input type="file" accept="image/*" style="display:none" onchange="uploadBrandPhoto(this)">
+          </label>
+          <button class="btn" style="margin-left:8px;padding:8px 14px;font-size:13px" onclick="removeBrandPhoto()">Remove</button>
+        </div>
+      </div>
+
+      <!-- Change Owner Password -->
+      <div class="section-label" style="margin-top:20px">Change Owner Password</div>
+      <div class="card">
+        <div class="field"><label>Current Password</label><input type="password" id="set-old-pass" placeholder="Enter current password"></div>
+        <div class="field"><label>New Password</label><input type="password" id="set-new-pass" placeholder="Enter new password"></div>
+        <div class="field"><label>Confirm New Password</label><input type="password" id="set-confirm-pass" placeholder="Re-enter new password"></div>
+        <div class="err" id="pass-err" style="display:none"></div>
+        <div style="color:var(--green);font-size:13px;display:none" id="pass-ok">✓ Password changed successfully</div>
+        <button class="btn btn-primary" onclick="changeOwnerPassword()" style="margin-top:8px">Update Password</button>
+      </div>
+
+      <!-- Staff Management -->
+      <div class="section-label" style="margin-top:20px">Staff Accounts</div>
+      <div class="card" id="staff-list-card">
+        <div id="staff-accounts-list"></div>
+        <button class="btn btn-green" onclick="showAddStaff()" style="margin-top:12px;width:100%">+ Add Staff Account</button>
+      </div>
+      <div class="card" id="add-staff-form" style="display:none">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">New Staff Account</div>
+        <div class="field"><label>Username</label><input type="text" id="new-staff-name" placeholder="e.g. maria_fv"></div>
+        <div class="field"><label>PIN</label><input type="password" id="new-staff-pin" placeholder="4-6 digits" maxlength="6" inputmode="numeric"></div>
+        <div class="field">
+          <label>Branch</label>
+          <select id="new-staff-branch">
+            <option value="">Select branch...</option>
+            <option>Fairview</option><option>Zabarte</option><option>Don Jose</option>
+          </select>
+        </div>
+        <div class="err" id="add-staff-err" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary" onclick="addStaffAccount()" style="flex:1">Save Account</button>
+          <button class="btn" onclick="hideAddStaff()" style="flex:1">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -605,8 +658,13 @@ const PRODUCTS=[
   {id:'LECHE FLAN',cat:'addon',name:'Leche Flan',phn:60,pck:10},{id:'GULAMAN',cat:'addon',name:'Gulaman',phn:40,pck:25},
   {id:'WATER',cat:'addon',name:'Water',phn:13},{id:'COKE',cat:'addon',name:'Coke',phn:38},{id:'KOPIKO',cat:'addon',name:'Kopiko',phn:19}
 ];
-const VAT_RATE=0.12,STAFF_PIN='1234',OWNER_PASS='owner123';
-let currentBranch=null,activeRange='today',customFrom=null,customTo=null;
+const VAT_RATE=0.12,OWNER_PASS='owner123';
+// Staff accounts stored in localStorage (managed by owner)
+function getStaffAccounts(){
+  try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
+}
+function saveStaffAccounts(list){ localStorage.setItem('doms_staff_accounts',JSON.stringify(list)); }
+let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null;
 
 // saveEntry and getEntries replaced by async GitHub versions above
 
@@ -627,18 +685,22 @@ function doLogin(){
   const err=document.getElementById('login-err');
   err.style.display='none';
   if(isOwner){
-    if(document.getElementById('owner-pass').value===OWNER_PASS){showScreen('screen-owner');initOwnerDashboard();}
+    if(document.getElementById('owner-pass').value===getOwnerPass()){showScreen('screen-owner');initOwnerDashboard();}
     else{err.textContent='Incorrect password.';err.style.display='block';}
   } else {
-    const branch=document.getElementById('staff-branch').value;
+    const username=(document.getElementById('staff-username').value||'').trim();
     const pin=document.getElementById('staff-pin').value;
-    if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
-    if(pin===STAFF_PIN){
-      currentBranch=branch;
-      document.getElementById('staff-branch-label').textContent=branch;
+    if(!username){err.textContent='Please enter your username.';err.style.display='block';return;}
+    if(!pin){err.textContent='Please enter your PIN.';err.style.display='block';return;}
+    const accounts=getStaffAccounts();
+    const account=accounts.find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin);
+    if(account){
+      currentBranch=account.branch;
+      currentStaff=account.username;
+      document.getElementById('staff-branch-label').textContent=account.branch;
       document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
       showScreen('screen-staff');initStaffForm();
-    } else {err.textContent='Incorrect PIN.';err.style.display='block';}
+    } else {err.textContent='Incorrect username or PIN.';err.style.display='block';}
   }
 }
 function logout(){
@@ -902,7 +964,8 @@ async function renderStaffHistory(){
 }
 
 function ownerTab(tab,el){
-  ['dashboard','reports','products'].forEach(t=>{document.getElementById('owner-'+t).style.display=t===tab?'block':'none';});
+  if(tab==='settings'){renderStaffAccounts();loadBrandPhoto();}
+  ['dashboard','reports','products','settings'].forEach(t=>{const el=document.getElementById('owner-'+t);if(el)el.style.display=t===tab?'block':'none';});
   document.querySelectorAll('#screen-owner .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
   if(tab==='reports')renderReports();
   if(tab==='products')renderProductAnalysis();
@@ -1020,6 +1083,118 @@ function seedDemo(){
     {branch:'Fairview',date:'2026-02-24',totalVatSales:12100,gross:11200,cashHand:4300,gcash:5400,grabfood:400,foodpanda:0,guestCount:14,totalExpenses:2900,totalMisc:180,phn:5900,pck:900,foodCost:450,netPrf:990,avgCheck:750,products:{'BILAO-S':6,'BILAO-M':4,'BILAO-L':3,'BG-M':2,'MIKI-S':2,'PALABOK-S':3,'PUTO':7,'PICHI':3},top1:'PUTO',top2:'BILAO-S',top3:'PALABOK-S',expenses:[{desc:'LPG',amt:600}],miscExpenses:[]},
   ];
   demo.forEach(e=>saveEntry({id:'d'+Math.random().toString(36).slice(2),...e}));
+}
+
+
+function changeOwnerPassword(){
+  const old=document.getElementById('set-old-pass').value;
+  const nw=document.getElementById('set-new-pass').value;
+  const cf=document.getElementById('set-confirm-pass').value;
+  const err=document.getElementById('pass-err');
+  const ok=document.getElementById('pass-ok');
+  err.style.display='none'; ok.style.display='none';
+  const storedPass=localStorage.getItem('doms_owner_pass')||OWNER_PASS;
+  if(old!==storedPass){err.textContent='Current password is incorrect.';err.style.display='block';return;}
+  if(nw.length<4){err.textContent='New password must be at least 4 characters.';err.style.display='block';return;}
+  if(nw!==cf){err.textContent='New passwords do not match.';err.style.display='block';return;}
+  localStorage.setItem('doms_owner_pass',nw);
+  document.getElementById('set-old-pass').value='';
+  document.getElementById('set-new-pass').value='';
+  document.getElementById('set-confirm-pass').value='';
+  ok.style.display='block';
+}
+
+function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
+
+function renderStaffAccounts(){
+  const list=getStaffAccounts();
+  const el=document.getElementById('staff-accounts-list');
+  if(!list.length){el.innerHTML='<div style="color:var(--text-2);font-size:13px;padding:8px 0">No staff accounts yet. Add one below.</div>';return;}
+  el.innerHTML=list.map((a,i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${a.username}</div>
+        <div style="font-size:12px;color:var(--text-2)">${a.branch}</div>
+      </div>
+      <button class="btn" style="padding:6px 12px;font-size:12px" onclick="editStaffPin(${i})">Change PIN</button>
+      <button class="btn" style="padding:6px 12px;font-size:12px;color:var(--red)" onclick="deleteStaff(${i})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function showAddStaff(){
+  document.getElementById('add-staff-form').style.display='block';
+  document.getElementById('new-staff-name').focus();
+}
+function hideAddStaff(){
+  document.getElementById('add-staff-form').style.display='none';
+  document.getElementById('new-staff-name').value='';
+  document.getElementById('new-staff-pin').value='';
+  document.getElementById('new-staff-branch').value='';
+  document.getElementById('add-staff-err').style.display='none';
+}
+
+function addStaffAccount(){
+  const name=(document.getElementById('new-staff-name').value||'').trim();
+  const pin=document.getElementById('new-staff-pin').value.trim();
+  const branch=document.getElementById('new-staff-branch').value;
+  const err=document.getElementById('add-staff-err');
+  err.style.display='none';
+  if(!name){err.textContent='Username is required.';err.style.display='block';return;}
+  if(pin.length<4){err.textContent='PIN must be 4-6 digits.';err.style.display='block';return;}
+  if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
+  const list=getStaffAccounts();
+  if(list.find(a=>a.username.toLowerCase()===name.toLowerCase())){
+    err.textContent='Username already exists.';err.style.display='block';return;
+  }
+  list.push({username:name,pin,branch});
+  saveStaffAccounts(list);
+  hideAddStaff();
+  renderStaffAccounts();
+}
+
+function deleteStaff(i){
+  if(!confirm('Remove this staff account?')) return;
+  const list=getStaffAccounts();
+  list.splice(i,1);
+  saveStaffAccounts(list);
+  renderStaffAccounts();
+}
+
+function editStaffPin(i){
+  const list=getStaffAccounts();
+  const newPin=prompt(`New PIN for ${list[i].username}:`);
+  if(!newPin) return;
+  if(newPin.length<4){alert('PIN must be at least 4 digits.');return;}
+  list[i].pin=newPin.trim();
+  saveStaffAccounts(list);
+  renderStaffAccounts();
+}
+
+function uploadBrandPhoto(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    localStorage.setItem('doms_brand_photo',e.target.result);
+    loadBrandPhoto();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBrandPhoto(){
+  localStorage.removeItem('doms_brand_photo');
+  loadBrandPhoto();
+}
+
+function loadBrandPhoto(){
+  const photo=localStorage.getItem('doms_brand_photo');
+  const img=document.getElementById('brand-avatar');
+  const ph=document.getElementById('brand-avatar-placeholder');
+  if(img&&ph){
+    if(photo){img.src=photo;img.style.display='block';ph.style.display='none';}
+    else{img.style.display='none';ph.style.display='flex';}
+  }
 }
 
 window.onload=function(){
