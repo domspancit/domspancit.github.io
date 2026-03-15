@@ -1115,7 +1115,7 @@ function closeEditModal(){
 let _editEntries={};
 
 function openEditModal(entry){
-  _editEntries[entry.id]=entry; // store for safe reference
+  _editEntries[entry.id]=entry;
   const m=document.getElementById('edit-modal');
   const b=document.getElementById('edit-modal-body');
   const f=(label,field,val,type='number')=>`
@@ -1123,9 +1123,26 @@ function openEditModal(entry){
       <label style="font-size:12px;font-weight:700;color:var(--text-2)">${label}</label>
       <input type="${type}" id="ef-${field}" value="${val??''}" style="width:100%;padding:10px 12px;border:1.5px solid var(--border-strong);border-radius:var(--radius);font-size:15px;background:var(--surface)">
     </div>`;
+
+  // Build editable expense rows
+  const expRows=(entry.expenses||[]).map((x,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" id="ef-exp-desc-${i}" value="${x.desc}" placeholder="Description"
+        style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      <input type="number" id="ef-exp-amt-${i}" value="${x.amt}" placeholder="0"
+        style="width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right">
+    </div>`).join('');
+  const miscRows=(entry.miscExpenses||[]).map((x,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" id="ef-misc-desc-${i}" value="${x.desc}" placeholder="Description"
+        style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      <input type="number" id="ef-misc-amt-${i}" value="${x.amt}" placeholder="0"
+        style="width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right">
+    </div>`).join('');
+
   b.innerHTML=`
-    <div style="background:var(--orange-light);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px">
-      <strong>${entry.branch}</strong> &nbsp;·&nbsp; Original date: ${entry.date}
+    <div style="background:var(--orange-light);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+      <strong>${entry.branch}</strong> &nbsp;·&nbsp; ${entry.date}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
       ${f('Date','date',entry.date,'date')}
@@ -1135,17 +1152,33 @@ function openEditModal(entry){
       ${f('GCash (₱)','gcash',entry.gcash)}
       ${f('GrabFood (₱)','grabfood',entry.grabfood)}
       ${f('FoodPanda (₱)','foodpanda',entry.foodpanda)}
-      ${f('Total Expenses (₱)','totalExpenses',entry.totalExpenses)}
-      ${f('Misc Expenses (₱)','totalMisc',entry.totalMisc)}
     </div>
-    <div style="background:var(--green-light);border-radius:10px;padding:10px 14px;margin:4px 0 10px;font-size:12px">
-      <strong style="color:var(--green-text)">Auto-calculated on save:</strong> Gross, PHN, Food Cost (PHN−PCK), LPG, PRF, TTS, Net PRF, Avg Check, Check Balance
+
+    <div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin:8px 0;border:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px">
+        📋 REGULAR EXPENSES <span style="font-weight:400;color:var(--text-3)">(Check &amp; Balance only — does NOT affect PRF)</span>
+      </div>
+      <div id="ef-exp-rows">${expRows||'<div style="color:var(--text-3);font-size:12px;padding:4px 0">No items</div>'}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+        Stored total: <strong id="ef-exp-total">${peso(entry.totalExpenses||0)}</strong>
+      </div>
     </div>
-    <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:12px;color:var(--text-2)">
-      ℹ️ Changing payment/sales fields will auto-recalculate Gross, PRF, TTS, Net PRF, LPG, Check Balance.
+
+    <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin:8px 0;border:1.5px solid var(--orange-light)">
+      <div style="font-size:12px;font-weight:700;color:var(--orange-text);margin-bottom:6px">
+        ⭐ MISC EXPENSES <span style="font-weight:400;color:var(--text-2)">(This is what PRF uses! PRF = GrossPrf − LPG − OHD − <u>Misc</u>)</span>
+      </div>
+      <div id="ef-misc-rows">${miscRows||'<div style="color:var(--text-3);font-size:12px;padding:4px 0">No items</div>'}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:4px">
+        Stored total: <strong style="color:var(--orange-dark)" id="ef-misc-total">${peso(entry.totalMisc||0)}</strong>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-primary" onclick="saveEditModal('${entry.id}')" style="flex:2">💾 Save Changes</button>
+
+    <div style="background:var(--green-light);border-radius:10px;padding:9px 14px;margin:6px 0 12px;font-size:12px;color:var(--green-text)">
+      ✅ After saving: PRF, TTS, Net PRF, Food Cost, LPG, Avg Check will auto-recalculate.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveEditModal('${entry.id}')" style="flex:2">💾 Save &amp; Recalculate</button>
       <button class="btn" style="flex:1;background:var(--red-light);color:var(--red-text);border:1.5px solid var(--red-text)" onclick="deleteEntry('${entry.id}')">🗑 Delete</button>
     </div>`;
   m.classList.add('show');
@@ -1157,11 +1190,28 @@ function saveEditModal(id){
   const gs=f=>document.getElementById('ef-'+f)?.value||'';
   const vatSalesInput=g('vatSalesInput'),cashHand=g('cashHand'),gcash=g('gcash');
   const grabfood=g('grabfood'),foodpanda=g('foodpanda');
-  const totalExpenses=g('totalExpenses'),totalMisc=g('totalMisc');
   const guestCount=gi('guestCount'),newDate=gs('date');
-  // Get original entry to preserve phn and branch
-  const cached=JSON.parse(localStorage.getItem('doms_entries_cache')||'[]');
-  const orig=cached.find(e=>e.id===id)||{};
+
+  // Read expense line items from editable rows
+  const orig=_editEntries[id]||JSON.parse(localStorage.getItem('doms_entries_cache')||'[]').find(e=>e.id===id)||{};
+  const expCount=(orig.expenses||[]).length;
+  const miscCount=(orig.miscExpenses||[]).length;
+  const expenses=[];
+  for(let i=0;i<expCount;i++){
+    const desc=(document.getElementById(`ef-exp-desc-${i}`)?.value||'').trim();
+    const amt=parseFloat(document.getElementById(`ef-exp-amt-${i}`)?.value)||0;
+    if(desc||amt) expenses.push({desc,amt});
+  }
+  const miscExpenses=[];
+  for(let i=0;i<miscCount;i++){
+    const desc=(document.getElementById(`ef-misc-desc-${i}`)?.value||'').trim();
+    const amt=parseFloat(document.getElementById(`ef-misc-amt-${i}`)?.value)||0;
+    if(desc||amt) miscExpenses.push({desc,amt});
+  }
+  const totalExpenses=expenses.reduce((s,x)=>s+x.amt,0);
+  const totalMisc=miscExpenses.reduce((s,x)=>s+x.amt,0);
+
+  // Preserve phn/pck from original
   const phn=orig.phn||0;
   const branchName=orig.branch||'';
   // Recalculate financials using same formulas
@@ -1185,9 +1235,9 @@ function saveEditModal(id){
   const paperCost=orig.pck||0;
   updateEntry(id,{
     date:newDate,guestCount,vatSalesInput,cashHand,gcash,grabfood,foodpanda,
-    totalExpenses,totalMisc,foodCost,
+    expenses,miscExpenses,totalExpenses,totalMisc,foodCost,
     totalVatSales,vat,salesLessVat,gross,cashAfterVat,cashSum,checkBalance,
-    lpg,grossPrf,prf,tts,netPrf,avgCheck,ohd,foodCost,paperCost
+    lpg,grossPrf,prf,tts,netPrf,avgCheck,ohd,paperCost
   });
 }
 
