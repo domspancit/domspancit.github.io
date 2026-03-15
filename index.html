@@ -197,6 +197,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .range-tab{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface)}
 .range-tab.active{background:var(--red);color:#fff;border-color:var(--red)}
 
+/* DASHBOARD BRANCH FILTER */
+.dbf-btn{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface);transition:.15s}
+.dbf-btn:hover{border-color:var(--green);color:var(--green)}
+.dbf-active{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important}
+
 /* BRANCH CARDS */
 .branch-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px}
 .branch-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:14px;transition:.15s}
@@ -453,6 +458,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <button class="btn btn-green btn-sm" onclick="applyRange()">Apply</button>
         </div>
       </div>
+      <!-- Branch filter -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+        <button id="dbf-all" class="dbf-btn dbf-active" onclick="setDashBranch('all',this)">All Branches</button>
+        <button id="dbf-Fairview" class="dbf-btn" onclick="setDashBranch('Fairview',this)">Fairview</button>
+        <button id="dbf-Zabarte" class="dbf-btn" onclick="setDashBranch('Zabarte',this)">Zabarte</button>
+        <button id="dbf-Don Jose" class="dbf-btn" onclick="setDashBranch('Don Jose',this)">Don Jose</button>
+      </div>
       <div class="section-label">Branches</div>
       <div class="branch-cards" id="branch-summary-cards"></div>
       <div class="section-label">Overall</div>
@@ -460,9 +472,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="section-label">Top Products</div>
       <div class="card"><div class="bar-chart" id="top-products-chart"></div></div>
       <div class="section-label">Recent Entries</div>
-      <div class="card" style="padding:0;overflow:hidden">
+      <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
         <table class="data-table">
-          <thead><tr><th>Date</th><th>Branch</th><th>Sales</th><th>Guests</th></tr></thead>
+          <thead><tr><th>Date</th><th>Branch</th><th style="text-align:right">VAT Sales</th><th style="text-align:right">Gross</th><th style="text-align:right">Guests</th><th style="text-align:right">Avg Chk</th><th style="text-align:right">Net PRF</th><th style="text-align:right">TTS</th><th style="text-align:right">LPG</th><th style="text-align:right">Chk Bal</th><th style="text-align:center">Edit</th></tr></thead>
           <tbody id="recent-tbody"></tbody>
         </table>
       </div>
@@ -554,6 +566,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="modal-title">Submitted!</div>
     <div class="modal-sub" id="modal-sub-text">Daily report saved successfully.</div>
     <button class="btn btn-green" onclick="closeModal()">Done</button>
+  </div>
+</div>
+
+<!-- EDIT ENTRY MODAL -->
+<div class="modal-overlay" id="edit-modal" style="z-index:200;align-items:flex-start;padding:0">
+  <div style="background:var(--surface);width:100%;max-width:520px;margin:0 auto;border-radius:0 0 20px 20px;max-height:100vh;overflow-y:auto;padding:20px 20px 32px;border-bottom:3px solid var(--orange)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:800">✏️ Edit Entry</div>
+      <button onclick="closeEditModal()" style="border:none;background:var(--bg);border-radius:8px;width:34px;height:34px;font-size:20px;cursor:pointer;color:var(--text-2)">✕</button>
+    </div>
+    <div id="edit-modal-body"></div>
   </div>
 </div>
 
@@ -659,7 +682,7 @@ function getStaffAccounts(){
   try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
 }
 function saveStaffAccounts(list){ localStorage.setItem('doms_staff_accounts',JSON.stringify(list)); }
-let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null;
+let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null,activeDashBranch='all';
 
 // saveEntry and getEntries replaced by async GitHub versions above
 
@@ -988,9 +1011,125 @@ function getFiltered(){
 function peso(n){return '₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function pesoS(n){n=Number(n||0);if(n>=1000000)return '₱'+(n/1000000).toFixed(1)+'M';if(n>=1000)return '₱'+(n/1000).toFixed(1)+'k';return '₱'+n.toFixed(0);}
 
+// ── Delete / Update entry ──────────────────────────────
+async function deleteEntry(id){
+  if(!confirm('Delete this entry? This cannot be undone.')) return;
+  showSaving(true);
+  const {data}=await ghGet();
+  const entries=(data?.entries||[]).filter(e=>e.id!==id);
+  const ok=await ghSave({entries});
+  showSaving(false);
+  if(!ok){alert('Delete failed. Check your connection.');return;}
+  localStorage.setItem('doms_entries_cache',JSON.stringify(entries));
+  closeEditModal();
+  renderReports();
+  initOwnerDashboard();
+}
+
+async function updateEntry(id,patch){
+  showSaving(true);
+  const {data}=await ghGet();
+  const entries=(data?.entries||[]).map(e=>e.id===id?{...e,...patch}:e);
+  const ok=await ghSave({entries});
+  showSaving(false);
+  if(!ok){alert('Save failed. Check your connection.');return;}
+  localStorage.setItem('doms_entries_cache',JSON.stringify(entries));
+  closeEditModal();
+  renderReports();
+  initOwnerDashboard();
+}
+
+function closeEditModal(){
+  document.getElementById('edit-modal').classList.remove('show');
+}
+
+// ── Edit modal entry store ─────────────────────────────
+let _editEntries={};
+
+function openEditModal(entry){
+  _editEntries[entry.id]=entry; // store for safe reference
+  const m=document.getElementById('edit-modal');
+  const b=document.getElementById('edit-modal-body');
+  const f=(label,field,val,type='number')=>`
+    <div class="field">
+      <label style="font-size:12px;font-weight:700;color:var(--text-2)">${label}</label>
+      <input type="${type}" id="ef-${field}" value="${val??''}" style="width:100%;padding:10px 12px;border:1.5px solid var(--border-strong);border-radius:var(--radius);font-size:15px;background:var(--surface)">
+    </div>`;
+  b.innerHTML=`
+    <div style="background:var(--orange-light);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px">
+      <strong>${entry.branch}</strong> &nbsp;·&nbsp; Original date: ${entry.date}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+      ${f('Date','date',entry.date,'date')}
+      ${f('Guest Count','guestCount',entry.guestCount,'number')}
+      ${f('VAT Sales / Walk-ins (₱)','vatSalesInput',entry.vatSalesInput)}
+      ${f('Cash on Hand (₱)','cashHand',entry.cashHand)}
+      ${f('GCash (₱)','gcash',entry.gcash)}
+      ${f('GrabFood (₱)','grabfood',entry.grabfood)}
+      ${f('FoodPanda (₱)','foodpanda',entry.foodpanda)}
+      ${f('Total Expenses (₱)','totalExpenses',entry.totalExpenses)}
+      ${f('Misc Expenses (₱)','totalMisc',entry.totalMisc)}
+      ${f('Food Cost (₱)','foodCost',entry.foodCost)}
+    </div>
+    <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:12px;color:var(--text-2)">
+      ℹ️ Changing payment/sales fields will auto-recalculate Gross, PRF, TTS, Net PRF, LPG, Check Balance.
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="saveEditModal('${entry.id}')" style="flex:2">💾 Save Changes</button>
+      <button class="btn" style="flex:1;background:var(--red-light);color:var(--red-text);border:1.5px solid var(--red-text)" onclick="deleteEntry('${entry.id}')">🗑 Delete</button>
+    </div>`;
+  m.classList.add('show');
+}
+
+function saveEditModal(id){
+  const g=f=>parseFloat(document.getElementById('ef-'+f)?.value)||0;
+  const gi=f=>parseInt(document.getElementById('ef-'+f)?.value)||0;
+  const gs=f=>document.getElementById('ef-'+f)?.value||'';
+  const vatSalesInput=g('vatSalesInput'),cashHand=g('cashHand'),gcash=g('gcash');
+  const grabfood=g('grabfood'),foodpanda=g('foodpanda');
+  const totalExpenses=g('totalExpenses'),totalMisc=g('totalMisc');
+  const guestCount=gi('guestCount'),newDate=gs('date');
+  // Get original entry to preserve phn and branch
+  const cached=JSON.parse(localStorage.getItem('doms_entries_cache')||'[]');
+  const orig=cached.find(e=>e.id===id)||{};
+  const phn=orig.phn||0;
+  const branchName=orig.branch||'';
+  // Recalculate financials using same formulas
+  const totalVatSales=vatSalesInput+gcash;
+  const vat=totalVatSales*(0.12/1.12);
+  const salesLessVat=totalVatSales-vat;
+  const gross=salesLessVat+grabfood+foodpanda;
+  const cashAfterVat=cashHand-vat;
+  const expTotal=totalExpenses+totalMisc;
+  const cashSum=expTotal+cashHand;
+  const checkBalance=vatSalesInput-cashSum;
+  const lpg=(gross/15000)*800;
+  const ohd=BRANCHES.find(b=>b.name===branchName)?.ohd||0;
+  const grossPrf=gross-phn;
+  const prf=grossPrf-lpg-ohd-totalMisc;
+  const tts=prf*0.1;
+  const netPrf=prf-tts;
+  const avgCheck=guestCount>0?gross/guestCount:0;
+  const foodCost=g('foodCost');
+  updateEntry(id,{
+    date:newDate,guestCount,vatSalesInput,cashHand,gcash,grabfood,foodpanda,
+    totalExpenses,totalMisc,foodCost,
+    totalVatSales,vat,salesLessVat,gross,cashAfterVat,cashSum,checkBalance,
+    lpg,grossPrf,prf,tts,netPrf,avgCheck,ohd
+  });
+}
+
+// ── Dashboard branch filter ───────────────────────────
+function setDashBranch(branch,el){
+  activeDashBranch=branch;
+  document.querySelectorAll('.dbf-btn').forEach(b=>b.classList.remove('dbf-active'));
+  if(el)el.classList.add('dbf-active');
+  initOwnerDashboard();
+}
+
 async function initOwnerDashboard(){
   const allData=await getEntries();
-  const entries=allData.filter(e=>{
+  let allEntries=allData.filter(e=>{
     const now=new Date(),today=now.toISOString().split('T')[0];
     const d=new Date(e.date);
     if(activeRange==='today')return e.date===today;
@@ -1000,28 +1139,87 @@ async function initOwnerDashboard(){
     if(activeRange==='custom'&&customFrom&&customTo)return e.date>=customFrom&&e.date<=customTo;
     return true;
   });
-  const branchColors=['red','green','orange'];
+  // Apply branch filter
+  const entries=activeDashBranch==='all'?allEntries:allEntries.filter(e=>e.branch===activeDashBranch);
+  const tot=f=>entries.reduce((s,e)=>s+(e[f]||0),0);
+  // Branch summary cards
   document.getElementById('branch-summary-cards').innerHTML=BRANCHES.map((b,i)=>{
     const be=entries.filter(e=>e.branch===b.name);
-    const total=be.reduce((s,e)=>s+(e.totalVatSales||0),0);
-    return `<div class="branch-card"><div class="branch-dot branch-dot-${i}"></div><div class="branch-name">${b.name}</div><div class="branch-sales">${pesoS(total)}</div><div class="branch-sub">${be.length} day${be.length!==1?'s':''} recorded</div></div>`;
+    const bTotSales=be.reduce((s,e)=>s+(e.totalVatSales||0),0);
+    const bGross=be.reduce((s,e)=>s+(e.gross||0),0);
+    const bNetPrf=be.reduce((s,e)=>s+(e.netPrf||0),0);
+    const bGuests=be.reduce((s,e)=>s+(e.guestCount||0),0);
+    const bTts=be.reduce((s,e)=>s+(e.tts||0),0);
+    const bLpg=be.reduce((s,e)=>s+(e.lpg||0),0);
+    const bAvgCheck=bGross>0&&bGuests>0?bGross/bGuests:0;
+    const colors=['red','green','orange'];
+    const c=colors[i%3];
+    return `<div class="branch-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px"><div class="branch-dot branch-dot-${i}"></div><div class="branch-name">${b.name}</div></div>
+        <span class="badge badge-${c==='red'?'red':c==='green'?'green':'orange'}">${be.length} day${be.length!==1?'s':''}</span>
+      </div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px">${pesoS(bTotSales)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">GROSS</div><div style="font-weight:700">${pesoS(bGross)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">NET PRF</div><div style="font-weight:700;color:var(--green-dark)">${pesoS(bNetPrf)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">TTS (10%)</div><div style="font-weight:700;color:var(--orange-dark)">${pesoS(bTts)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">LPG</div><div style="font-weight:700">${pesoS(bLpg)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">GUESTS</div><div style="font-weight:700">${bGuests.toLocaleString()}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">AVG CHECK</div><div style="font-weight:700">${bAvgCheck>0?'₱'+bAvgCheck.toFixed(2):'—'}</div></div>
+      </div>
+    </div>`;
   }).join('');
-  const totSales=entries.reduce((s,e)=>s+(e.totalVatSales||0),0);
-  const totGuests=entries.reduce((s,e)=>s+(e.guestCount||0),0);
-  const totExp=entries.reduce((s,e)=>s+(e.totalExpenses||0)+(e.totalMisc||0),0);
-  const totNetPrf=entries.reduce((s,e)=>s+(e.netPrf||0),0);
-  const avgCheck=totGuests>0?totSales/totGuests:0;
+  // Overall metrics
+  const totSales=tot('totalVatSales'),totGross=tot('gross'),totGuests=tot('guestCount');
+  const totNetPrf=tot('netPrf'),totTts=tot('tts'),totLpg=tot('lpg');
+  const totPhn=tot('phn'),totOhd=tot('ohd');
+  const totExp=tot('totalExpenses')+tot('totalMisc');
+  const totFoodCost=tot('foodCost');
+  const totGrossPrf=tot('grossPrf');
+  const totPrf=tot('prf');
+  const avgCheck=totGross>0&&totGuests>0?totGross/totGuests:0;
+  const totCashBalance=entries.reduce((s,e)=>s+(e.checkBalance||0),0);
+  const balClass=Math.abs(totCashBalance)<1?'color:var(--green-text)':'color:var(--red-text)';
   document.getElementById('overall-metrics').innerHTML=`
-    <div class="metric-card red"><div class="metric-lbl">TOTAL SALES</div><div class="metric-val">${pesoS(totSales)}</div><div class="metric-sub">${entries.length} entries</div></div>
-    <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${pesoS(totNetPrf)}</div><div class="metric-sub">After TTS</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">TOTAL GUESTS</div><div class="metric-val">${totGuests.toLocaleString()}</div><div class="metric-sub">Avg ₱${Math.round(avgCheck)}/guest</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${pesoS(totExp)}</div><div class="metric-sub">All branches</div></div>`;
+    <div class="metric-card red"><div class="metric-lbl">TOTAL VAT SALES</div><div class="metric-val">${pesoS(totSales)}</div><div class="metric-sub">${entries.length} entr${entries.length!==1?'ies':'y'}</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">GROSS</div><div class="metric-val">${pesoS(totGross)}</div><div class="metric-sub">After VAT + Delivery</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PHN (Noodle Rev)</div><div class="metric-val">${pesoS(totPhn)}</div><div class="metric-sub">Noodle revenue</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">GROSS PRF</div><div class="metric-val">${pesoS(totGrossPrf)}</div><div class="metric-sub">Gross − PHN</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">LPG</div><div class="metric-val">${pesoS(totLpg)}</div><div class="metric-sub">Gross/15000×800</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">OHD</div><div class="metric-val">${pesoS(totOhd)}</div><div class="metric-sub">Overhead per branch</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PRF</div><div class="metric-val">${pesoS(totPrf)}</div><div class="metric-sub">GrossPrf−LPG−OHD−Misc</div></div>
+    <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${pesoS(totTts)}</div><div class="metric-sub">PRF × 10%</div></div>
+    <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${pesoS(totNetPrf)}</div><div class="metric-sub">PRF − TTS</div></div>
+    <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${pesoS(totExp)}</div><div class="metric-sub">Expenses + Misc</div></div>
+    <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${pesoS(totFoodCost)}</div><div class="metric-sub">Bilao + Paper</div></div>
+    <div class="metric-card ${Math.abs(totCashBalance)<1?'green':'red'}"><div class="metric-lbl">CHECK & BALANCE</div><div class="metric-val" style="${balClass}">${totCashBalance>=0?'+':''}${pesoS(totCashBalance)}</div><div class="metric-sub">${Math.abs(totCashBalance)<1?'✓ Balanced':'⚠ Variance'}</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">TOTAL GUESTS</div><div class="metric-val">${totGuests.toLocaleString()}</div><div class="metric-sub">${avgCheck>0?'Avg ₱'+avgCheck.toFixed(2)+'/guest':'No guest data'}</div></div>`;
+  // Top products
   const qtys={};entries.forEach(e=>Object.entries(e.products||{}).forEach(([id,qty])=>{qtys[id]=(qtys[id]||0)+qty;}));
   const sorted=Object.entries(qtys).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxQ=sorted[0]?.[1]||1;
   document.getElementById('top-products-chart').innerHTML=sorted.length?sorted.map(([id,qty])=>`<div class="bar-row"><div class="bar-label">${id}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(qty/maxQ*100)}%"></div></div><div class="bar-val">${qty} sold</div></div>`).join(''):'<div class="empty"><div class="empty-text">No data yet.</div></div>';
-  const recent=[...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-  document.getElementById('recent-tbody').innerHTML=recent.length?recent.map(e=>`<tr><td>${e.date}</td><td><span class="badge badge-red">${e.branch}</span></td><td>${peso(e.totalVatSales)}</td><td>${e.guestCount}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-3)">No entries yet.</td></tr>';
+  // Recent entries - expanded columns
+  const recent=[...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+  recent.forEach(e=>{_editEntries[e.id]=e;}); // pre-store for edit
+  document.getElementById('recent-tbody').innerHTML=recent.length?recent.map(e=>{
+    const cb=e.checkBalance||0;
+    const cbClass=Math.abs(cb)<1?'color:var(--green-text)':'color:var(--red-text)';
+    return `<tr>
+      <td>${e.date}</td>
+      <td><span class="badge badge-red">${e.branch}</span></td>
+      <td style="text-align:right">${peso(e.totalVatSales)}</td>
+      <td style="text-align:right">${peso(e.gross||0)}</td>
+      <td style="text-align:right">${e.guestCount}</td>
+      <td style="text-align:right">${e.avgCheck>0?'₱'+(e.avgCheck).toFixed(0):'—'}</td>
+      <td style="text-align:right;color:var(--green-dark)">${peso(e.netPrf||0)}</td>
+      <td style="text-align:right;color:var(--orange-dark)">${peso(e.tts||0)}</td>
+      <td style="text-align:right">${peso(e.lpg||0)}</td>
+      <td style="text-align:right;font-weight:700;${cbClass}">${cb>=0?'+':''}${peso(cb)}</td>
+      <td style="text-align:center"><button onclick="openEditModal(_editEntries['${e.id}'])" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-3)">No entries yet.</td></tr>';
 }
 
 async function renderReports(){
@@ -1034,22 +1232,84 @@ async function renderReports(){
   const wrap=document.getElementById('report-content');
   if(!entries.length){wrap.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No data for this filter.</div></div>';return;}
   const tot=f=>entries.reduce((s,e)=>s+(e[f]||0),0);
-  wrap.innerHTML=`<div class="card"><div class="card-title">Period Summary${month?' – '+month:''}</div>
-    <div class="summary-row"><span class="lbl">Total VAT Sales</span><span>${peso(tot('totalVatSales'))}</span></div>
-    <div class="summary-row"><span class="lbl">Total PHN (Noodle)</span><span>${peso(tot('phn'))}</span></div>
-    <div class="summary-row"><span class="lbl">Total PCK (Bilao)</span><span>${peso(tot('pck'))}</span></div>
-    <div class="summary-row"><span class="lbl">Total Gross</span><span>${peso(tot('gross'))}</span></div>
-    <div class="summary-row"><span class="lbl">Total Expenses</span><span>${peso(tot('totalExpenses')+tot('totalMisc'))}</span></div>
-    <div class="summary-row"><span class="lbl">Food Cost</span><span>${peso(tot('foodCost'))}</span></div>
-    <div class="summary-row"><span class="lbl">Total Guests</span><span>${tot('guestCount').toLocaleString()}</span></div>
-    <div class="summary-row total"><span class="lbl">Net PRF</span><span>${peso(tot('netPrf'))}</span></div>
+  const totSales=tot('totalVatSales'),totGross=tot('gross'),totGuests=tot('guestCount');
+  const totPhn=tot('phn'),totGrossPrf=tot('grossPrf'),totLpg=tot('lpg'),totOhd=tot('ohd');
+  const totPrf=tot('prf'),totTts=tot('tts'),totNetPrf=tot('netPrf');
+  const totExp=tot('totalExpenses')+tot('totalMisc'),totFoodCost=tot('foodCost'),totPck=tot('pck');
+  const totGcash=tot('gcash'),totGrabfood=tot('grabfood'),totFoodpanda=tot('foodpanda');
+  const totCashHand=tot('cashHand'),totCashAfterVat=tot('cashAfterVat');
+  const totCashBalance=tot('checkBalance');
+  const avgCheck=totGross>0&&totGuests>0?totGross/totGuests:0;
+  const balClass=Math.abs(totCashBalance)<1?'color:var(--green-text)':'color:var(--red-text)';
+
+  // Per-day cards
+  const dayCards=entries.map(e=>{
+    const cb=e.checkBalance||0;
+    const cbClass=Math.abs(cb)<1?'color:var(--green-text)':'color:var(--red-text)';
+    const cbIcon=Math.abs(cb)<1?'✓':'⚠';
+    const avgCk=e.avgCheck>0?'₱'+e.avgCheck.toFixed(2):(e.gross>0&&e.guestCount>0?'₱'+(e.gross/e.guestCount).toFixed(2):'—');
+    _editEntries[e.id]=e; // pre-store for edit button
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+        <div>
+          <span style="font-size:15px;font-weight:800">${e.date}</span>
+          <span class="badge badge-red" style="margin-left:8px">${e.branch}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:18px;font-weight:800;color:var(--red)">${peso(e.totalVatSales||0)}</div>
+          <button onclick="openEditModal(_editEntries['${e.id}'])" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">✏️ Edit</button>
+          <button onclick="deleteEntry('${e.id}')" style="border:none;background:var(--red-light);color:var(--red-text);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;margin-bottom:8px">
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GUESTS</div><div style="font-weight:800;font-size:15px">${e.guestCount||0}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">AVG CHECK</div><div style="font-weight:800;font-size:15px">${avgCk}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GROSS</div><div style="font-weight:800;font-size:15px">${peso(e.gross||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">CASH ON HAND (After VAT)</div><div style="font-weight:700">${peso(e.cashAfterVat||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GCash</div><div style="font-weight:700">${peso(e.gcash||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GrabFood</div><div style="font-weight:700">${peso(e.grabfood||0)}</div></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:12px">
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">PHN</div><div style="font-weight:800">${peso(e.phn||0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">OHD</div><div style="font-weight:800">${peso(e.ohd||0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">GROSS PRF</div><div style="font-weight:800">${peso(e.grossPrf||0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">LPG</div><div style="font-weight:800">${peso(e.lpg||0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">PRF</div><div style="font-weight:800">${peso(e.prf||0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">TTS (10%)</div><div style="font-weight:800">${peso(e.tts||0)}</div></div>
+        <div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">NET PRF</div><div style="font-weight:900;font-size:16px;color:var(--green-dark)">${peso(e.netPrf||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">FOOD COST</div><div style="font-weight:700">${peso(e.foodCost||0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.pck||0)}</div></div>
+        <div style="background:${Math.abs(cb)<1?'var(--green-light)':'var(--red-light)'};border-radius:8px;padding:7px 9px;grid-column:span 2">
+          <div style="color:${Math.abs(cb)<1?'var(--green-text)':'var(--red-text)'};font-weight:700;margin-bottom:2px">${cbIcon} CHECK &amp; BALANCE</div>
+          <div style="font-weight:800;font-size:15px;${cbClass}">${cb>=0?'+':''}${peso(cb)}</div>
+        </div>
+      </div>
+      ${e.top1||e.top2||e.top3?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:12px"><div style="color:var(--text-3);font-weight:600;margin-bottom:4px">TOP SELLERS</div><div style="display:flex;gap:6px;flex-wrap:wrap">${[e.top1,e.top2,e.top3].filter(Boolean).map((t,i)=>`<span class="badge badge-orange">${['🥇','🥈','🥉'][i]} ${t}</span>`).join('')}</div></div>`:''}
+      ${e.expenses?.length||e.miscExpenses?.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:12px"><div style="color:var(--text-3);font-weight:600;margin-bottom:4px">EXPENSES (Total: ${peso((e.totalExpenses||0)+(e.totalMisc||0))})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${[...(e.expenses||[]),...(e.miscExpenses||[])].map(x=>`<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-weight:600">${x.desc}: ${peso(x.amt)}</span>`).join('')}</div></div>`:''}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML=`
+  <div class="card" style="background:var(--yellow);border:1.5px solid var(--orange-light)">
+    <div style="font-size:14px;font-weight:800;color:var(--orange-text);margin-bottom:12px">📊 Period Summary${month?' – '+month:''} ${branch!=='all'?'· '+branch:''}</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:13px">
+      <div><span style="color:var(--text-2)">VAT Sales</span><div style="font-weight:800;font-size:16px">${peso(totSales)}</div></div>
+      <div><span style="color:var(--text-2)">Gross</span><div style="font-weight:800;font-size:16px">${peso(totGross)}</div></div>
+      <div><span style="color:var(--text-2)">Guests</span><div style="font-weight:800;font-size:16px">${totGuests.toLocaleString()}</div></div>
+      <div><span style="color:var(--text-2)">Avg Check</span><div style="font-weight:800;font-size:16px">${avgCheck>0?'₱'+avgCheck.toFixed(2):'—'}</div></div>
+      <div><span style="color:var(--text-2)">PHN</span><div style="font-weight:700">${peso(totPhn)}</div></div>
+      <div><span style="color:var(--text-2)">OHD</span><div style="font-weight:700">${peso(totOhd)}</div></div>
+      <div><span style="color:var(--text-2)">Gross PRF</span><div style="font-weight:700">${peso(totGrossPrf)}</div></div>
+      <div><span style="color:var(--text-2)">LPG</span><div style="font-weight:700">${peso(totLpg)}</div></div>
+      <div><span style="color:var(--text-2)">PRF</span><div style="font-weight:700">${peso(totPrf)}</div></div>
+      <div><span style="color:var(--orange-text);font-weight:700">TTS (10%)</span><div style="font-weight:800;color:var(--orange-dark)">${peso(totTts)}</div></div>
+      <div style="grid-column:span 2"><span style="color:var(--green-text);font-weight:700">NET PRF</span><div style="font-weight:900;font-size:20px;color:var(--green-dark)">${peso(totNetPrf)}</div></div>
+      <div><span style="color:var(--text-2)">Expenses</span><div style="font-weight:700;color:var(--red-text)">${peso(totExp)}</div></div>
+      <div><span style="color:var(--text-2)">Food Cost</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
+      <div style="grid-column:span 2"><span style="${balClass.replace('color:','color:').replace(';','')}font-weight:700">Check &amp; Balance</span><div style="font-weight:800;font-size:16px;${balClass}">${totCashBalance>=0?'+':''}${peso(totCashBalance)} ${Math.abs(totCashBalance)<1?'✓ Balanced':'⚠ Variance'}</div></div>
+    </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="data-table">
-      <thead><tr><th>Date</th><th>Branch</th><th>Guests</th><th>VAT Sales</th><th>Net PRF</th></tr></thead>
-      <tbody>${entries.map(e=>`<tr><td>${e.date}</td><td><span class="badge badge-red">${e.branch}</span></td><td>${e.guestCount}</td><td>${peso(e.totalVatSales)}</td><td>${peso(e.netPrf)}</td></tr>`).join('')}</tbody>
-    </table>
-  </div>`;
+  ${dayCards}`;
 }
 
 async function renderProductAnalysis(){
