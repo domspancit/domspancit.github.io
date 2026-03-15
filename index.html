@@ -698,12 +698,49 @@ function openLogin(){
   document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
 }
+// ── SESSION MANAGEMENT ────────────────────────────────────
+const SESSION_KEY='doms_session';
+const INACTIVITY_MS=5*60*1000; // 5 minutes
+let inactivityTimer=null;
+
+function saveSession(role,branch,staff){
+  sessionStorage.setItem(SESSION_KEY,JSON.stringify({role,branch,staff,ts:Date.now()}));
+}
+function clearSession(){
+  sessionStorage.removeItem(SESSION_KEY);
+}
+function resetInactivityTimer(){
+  if(inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer=setTimeout(()=>{
+    // Only auto-logout if actually logged in (not on splash/login screen)
+    const anyActive=[...document.querySelectorAll('.screen')].some(s=>s.classList.contains('active'));
+    if(anyActive){
+      clearSession();
+      logout();
+      // Show subtle "session expired" message
+      const err=document.getElementById('login-err');
+      if(err){err.textContent='Session expired due to inactivity.';err.style.display='block';}
+    }
+  },INACTIVITY_MS);
+}
+// Track user activity
+['click','keydown','touchstart','mousemove'].forEach(ev=>{
+  document.addEventListener(ev,()=>{
+    const s=sessionStorage.getItem(SESSION_KEY);
+    if(s) resetInactivityTimer();
+  },{passive:true});
+});
+
 function doLogin(){
   const isOwner=document.querySelectorAll('.role-tab')[1].classList.contains('active');
   const err=document.getElementById('login-err');
   err.style.display='none';
   if(isOwner){
-    if(document.getElementById('owner-pass').value===getOwnerPass()){showScreen('screen-owner');initOwnerDashboard();}
+    if(document.getElementById('owner-pass').value===getOwnerPass()){
+      saveSession('owner',null,null);
+      resetInactivityTimer();
+      showScreen('screen-owner');initOwnerDashboard();
+    }
     else{err.textContent='Incorrect password.';err.style.display='block';}
   } else {
     const username=(document.getElementById('staff-username').value||'').trim();
@@ -715,6 +752,8 @@ function doLogin(){
     if(account){
       currentBranch=account.branch;
       currentStaff=account.username;
+      saveSession('staff',account.branch,account.username);
+      resetInactivityTimer();
       document.getElementById('staff-branch-label').textContent=account.branch;
       document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
       showScreen('screen-staff');initStaffForm();
@@ -722,6 +761,8 @@ function doLogin(){
   }
 }
 function logout(){
+  clearSession();
+  if(inactivityTimer) clearTimeout(inactivityTimer);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
@@ -1017,6 +1058,28 @@ function peso(n){return '₱'+Number(n||0).toLocaleString('en-PH',{minimumFracti
 function pesoS(n){n=Number(n||0);if(n>=1000000)return '₱'+(n/1000000).toFixed(1)+'M';if(n>=1000)return '₱'+(n/1000).toFixed(1)+'k';return '₱'+n.toFixed(0);}
 
 // ── Delete / Update entry ──────────────────────────────
+async function quickRecalc(id){
+  const cached=JSON.parse(localStorage.getItem('doms_entries_cache')||'[]');
+  const e=cached.find(x=>x.id===id);
+  if(!e){alert('Entry not found in cache. Please reload.');return;}
+  const phn=e.phn||0;
+  const pck=e.pck||0;
+  const gross=e.gross||0;
+  const totalMisc=e.totalMisc||0;
+  const branchName=e.branch||'';
+  const guestCount=e.guestCount||0;
+  const ohd=BRANCHES.find(b=>b.name===branchName)?.ohd||0;
+  const lpg=(gross/15000)*800;
+  const grossPrf=gross-phn;
+  const prf=grossPrf-lpg-ohd-totalMisc;
+  const tts=prf*0.1;
+  const netPrf=prf-tts;
+  const foodCost=phn-pck;
+  const paperCost=pck;
+  const avgCheck=guestCount>0?gross/guestCount:0;
+  await updateEntry(id,{lpg,grossPrf,prf,tts,netPrf,foodCost,paperCost,avgCheck,ohd});
+}
+
 async function deleteEntry(id){
   if(!confirm('Delete this entry? This cannot be undone.')) return;
   showSaving(true);
@@ -1260,7 +1323,13 @@ async function renderReports(){
     const cbIcon=Math.abs(cb)<1?'✓':'⚠';
     const avgCk=e.avgCheck>0?'₱'+e.avgCheck.toFixed(2):(e.gross>0&&e.guestCount>0?'₱'+(e.gross/e.guestCount).toFixed(2):'—');
     _editEntries[e.id]=e; // pre-store for edit button
+    // Detect stale entry (old formula: foodCost = bilaoFoodCost+paperCover, new: phn-pck)
+    const isStale=e.pck>0&&e.foodCost>0&&e.foodCost<e.pck;
     return `<div class="card" style="margin-bottom:12px">
+      ${isStale?`<div style="background:#fff3cd;border:1.5px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>⚠️ <strong>Old formula.</strong> PRF, TTS, Net PRF &amp; Food Cost need recalculating.</span>
+        <button onclick="quickRecalc('${e.id}')" style="border:none;background:#ffc107;color:#333;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🔄 Fix Now</button>
+      </div>`:''}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
         <div>
           <span style="font-size:15px;font-weight:800">${e.date}</span>
@@ -1466,7 +1535,24 @@ function loadBrandPhoto(){
 }
 
 window.onload=function(){
-  if(!localStorage.getItem('doms_gh_token')){ showScreen('screen-token'); }
+  if(!localStorage.getItem('doms_gh_token')){ showScreen('screen-token'); return; }
+  // Restore session on refresh
+  const saved=sessionStorage.getItem(SESSION_KEY);
+  if(saved){
+    try{
+      const s=JSON.parse(saved);
+      if(Date.now()-s.ts < INACTIVITY_MS){
+        if(s.role==='owner'){
+          showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();
+        } else if(s.role==='staff'&&s.branch){
+          currentBranch=s.branch;currentStaff=s.staff;
+          document.getElementById('staff-branch-label').textContent=s.branch;
+          document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+          showScreen('screen-staff');initStaffForm();resetInactivityTimer();
+        } else { clearSession(); }
+      } else { clearSession(); }
+    }catch(e){ clearSession(); }
+  }
   const now=new Date().toISOString().slice(0,7);
   ['hist-month','report-month','prod-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=now;});
   document.getElementById('report-month').addEventListener('change',renderReports);
@@ -1474,7 +1560,6 @@ window.onload=function(){
   document.getElementById('prod-month').addEventListener('change',renderProductAnalysis);
   document.getElementById('prod-branch-filter').addEventListener('change',renderProductAnalysis);
   document.getElementById('hist-month').addEventListener('change',renderStaffHistory);
-  // seedDemo disabled - using GitHub database
 };
 </script>
 </body>
