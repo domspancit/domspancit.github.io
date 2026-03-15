@@ -873,12 +873,11 @@ function doLogin(){
   const pin=isOwner
     ?(document.getElementById('owner-pass').value||'')
     :(document.getElementById('staff-pin').value||'');
-  if(!username){err.textContent='Please enter your username.';err.style.display='block';return;}
-  if(!pin){err.textContent='Please enter your PIN.';err.style.display='block';return;}
+  if(!pin){err.textContent='Please enter your PIN / password.';err.style.display='block';return;}
   if(isOwner){
-    // Check owner accounts in GitHub first, fallback to legacy password
-    const ownerAcct=getOwnerAccounts().find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin);
-    const legacyOk=(!getOwnerAccounts().length)&&pin===getOwnerPass();
+    // Check owner accounts in GitHub first, fallback to legacy password (no username needed)
+    const ownerAcct=username?getOwnerAccounts().find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin):null;
+    const legacyOk=pin===getOwnerPass(); // legacy always allowed as fallback
     if(ownerAcct||legacyOk){
       saveSession('owner',null,ownerAcct?.username||'Owner');
       resetInactivityTimer();
@@ -1938,21 +1937,24 @@ window.onload=async function(){
   populateBranchSelects();
   // Restore session on refresh
   const saved=sessionStorage.getItem(SESSION_KEY);
+  let sessionRestored=false;
   if(saved){
     try{
       const s=JSON.parse(saved);
       if(Date.now()-s.ts < INACTIVITY_MS){
         if(s.role==='owner'){
-          showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();
+          showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();sessionRestored=true;
         } else if(s.role==='staff'&&s.branch){
           currentBranch=s.branch;currentStaff=s.staff;
           document.getElementById('staff-branch-label').textContent=s.branch;
           document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
-          showScreen('screen-staff');initStaffForm();resetInactivityTimer();
+          showScreen('screen-staff');initStaffForm();resetInactivityTimer();sessionRestored=true;
         } else { clearSession(); }
       } else { clearSession(); }
     }catch(e){ clearSession(); }
   }
+  // If no valid session, show login screen
+  if(!sessionRestored){ openLogin(); }
   const now=new Date().toISOString().slice(0,7);
   ['hist-month','report-month','prod-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=now;});
   document.getElementById('report-month').addEventListener('change',renderReports);
