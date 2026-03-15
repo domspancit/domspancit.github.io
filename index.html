@@ -650,8 +650,8 @@ function saveToken(){
   const t = document.getElementById('setup-token').value.trim();
   if(!t.startsWith('ghp_')){ document.getElementById('token-err').style.display='block'; return; }
   localStorage.setItem('doms_gh_token', t);
-  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
-  document.getElementById('screen-login').classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
 }
 
@@ -826,9 +826,9 @@ function setRole(r,el){
 }
 
 function openLogin(){
-  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-splash').style.display='none';
-  document.getElementById('screen-login').classList.add('active');
+  document.getElementById('screen-login').style.display='block';
   document.getElementById('login-overlay').classList.add('show');
 }
 // ── SESSION MANAGEMENT ────────────────────────────────────
@@ -900,8 +900,9 @@ function doLogin(){
 function logout(){
   clearSession();
   if(inactivityTimer) clearTimeout(inactivityTimer);
-  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
-  document.getElementById('screen-login').classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-login').style.display='block';
+  document.getElementById('screen-splash').style.display='none';
   document.getElementById('login-overlay').classList.add('show');
   document.getElementById('staff-username').value='';
   document.getElementById('staff-pin').value='';
@@ -909,10 +910,11 @@ function logout(){
   document.getElementById('owner-pass').value='';
 }
 function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');});
+  document.getElementById('screen-login').style.display='none';
+  document.getElementById('screen-splash').style.display='none';
   const target=document.getElementById(id);
   target.classList.add('active');
-  target.style.display='';
   document.getElementById('login-overlay').classList.remove('show');
 }
 
@@ -1412,6 +1414,15 @@ function setDashBranch(branch,el){
 }
 
 async function initOwnerDashboard(){
+  // Show loading state while fetching
+  const dash=document.getElementById('owner-dashboard');
+  if(dash&&!dash.querySelector('#dash-loading')){
+    const loader=document.createElement('div');
+    loader.id='dash-loading';
+    loader.style.cssText='text-align:center;padding:40px;color:var(--text-2);font-size:15px;font-weight:600';
+    loader.innerHTML='⏳ Loading dashboard...';
+    dash.prepend(loader);
+  }
   const allData=await getEntries();
   let allEntries=allData.filter(e=>{
     const now=new Date(),today=now.toISOString().split('T')[0];
@@ -1506,6 +1517,9 @@ async function initOwnerDashboard(){
       <td style="text-align:center"><button onclick="openEditModal(_editEntries['${e.id}'])" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️</button></td>
     </tr>`;
   }).join(''):'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-3)">No entries yet.</td></tr>';
+  // Remove loading indicator
+  const loader=document.getElementById('dash-loading');
+  if(loader) loader.remove();
 }
 
 async function renderReports(){
