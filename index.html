@@ -396,7 +396,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
 
       <div class="section-label">Top Sellers (Optional)</div>
-      
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥇 #1 Top Seller</div>
+          <input id="top1" type="text" placeholder="e.g. PUTO" style="width:100%">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥈 #2 Top Seller</div>
+          <input id="top2" type="text" placeholder="e.g. BILAO-S" style="width:100%">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);margin-bottom:4px">🥉 #3 Top Seller</div>
+          <input id="top3" type="text" placeholder="e.g. PALABOK-S" style="width:100%">
+        </div>
+      </div>
 
     </div>
 
@@ -816,9 +829,9 @@ async function submitEntry(){
     bilaoQty:fin.bilaoQty,bilaoFoodCost:fin.bilaoFoodCost,paperCover:fin.paperCover,
     foodCost:fin.foodCost,grossPrf:fin.grossPrf,lpg:fin.lpg,prf:fin.prf,tts:fin.tts,netPrf:fin.netPrf,
     bilaoS:fin.bilaoQtyMap.S||0,bilaoM:fin.bilaoQtyMap.M||0,bilaoL:fin.bilaoQtyMap.L||0,bilaoXL:fin.bilaoQtyMap.XL||0,
-    top1:document.getElementById('top1').value,
-    top2:document.getElementById('top2').value,
-    top3:document.getElementById('top3').value
+    top1:document.getElementById('top1')?.value||'',
+    top2:document.getElementById('top2')?.value||'',
+    top3:document.getElementById('top3')?.value||''
   };
   const saved=await saveEntry(entry);
   if(!saved) return;
