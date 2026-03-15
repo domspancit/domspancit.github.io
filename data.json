@@ -43,6 +43,18 @@
         {
           "desc": "Cube",
           "amt": 18
+        },
+        {
+          "desc": "Co leslie",
+          "amt": 750
+        },
+        {
+          "desc": "Co Randy",
+          "amt": 1200
+        },
+        {
+          "desc": "Merienda",
+          "amt": 50
         }
       ],
       "miscExpenses": [
@@ -53,22 +65,10 @@
         {
           "desc": "Basahan",
           "amt": 100
-        },
-        {
-          "desc": "Merienda",
-          "amt": 50
-        },
-        {
-          "desc": "Co leslie",
-          "amt": 750
-        },
-        {
-          "desc": "Co Randy",
-          "amt": 1200
         }
       ],
-      "totalExpenses": 843,
-      "totalMisc": 2220,
+      "totalExpenses": 2843,
+      "totalMisc": 220,
       "ohd": 4300,
       "avgCheck": 834.5833333333334,
       "gross": 12518.75,
@@ -87,9 +87,9 @@
       "foodCost": 5188,
       "grossPrf": 6371.75,
       "lpg": 667.6666666666666,
-      "prf": -815.916666666667,
-      "tts": -81.5916666666667,
-      "netPrf": -734.3250000000003,
+      "prf": 1184.083333333333,
+      "tts": 118.4083333333333,
+      "netPrf": 1065.6749999999997,
       "bilaoS": 7,
       "bilaoM": 4,
       "bilaoL": 4,
