@@ -1125,19 +1125,15 @@ function openEditModal(entry){
     </div>`;
 
   // Build editable expense rows
-  const expRows=(entry.expenses||[]).map((x,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:6px">
-      <input type="text" id="ef-exp-desc-${i}" value="${x.desc}" placeholder="Description"
-        style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
-      <input type="number" id="ef-exp-amt-${i}" value="${x.amt}" placeholder="0"
-        style="width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right">
-    </div>`).join('');
-  const miscRows=(entry.miscExpenses||[]).map((x,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:6px">
-      <input type="text" id="ef-misc-desc-${i}" value="${x.desc}" placeholder="Description"
-        style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
-      <input type="number" id="ef-misc-amt-${i}" value="${x.amt}" placeholder="0"
-        style="width:100px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right">
+  const makeRows=(prefix,items)=>items.map((x,i)=>`
+    <div id="${prefix}-row-${i}" style="display:flex;gap:6px;margin-bottom:6px">
+      <input type="text" id="${prefix}-desc-${i}" value="${x.desc||''}" placeholder="Description"
+        oninput="efUpdateTotal('${prefix}')"
+        style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface)">
+      <input type="number" id="${prefix}-amt-${i}" value="${x.amt||''}" placeholder="0"
+        oninput="efUpdateTotal('${prefix}')"
+        style="width:90px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right;background:var(--surface)">
+      <button onclick="efDelRow('${prefix}',${i})" style="width:30px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;font-size:16px">×</button>
     </div>`).join('');
 
   b.innerHTML=`
@@ -1155,33 +1151,79 @@ function openEditModal(entry){
     </div>
 
     <div style="background:var(--bg);border-radius:10px;padding:10px 14px;margin:8px 0;border:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px">
+      <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:8px">
         📋 REGULAR EXPENSES <span style="font-weight:400;color:var(--text-3)">(Check &amp; Balance only — does NOT affect PRF)</span>
       </div>
-      <div id="ef-exp-rows">${expRows||'<div style="color:var(--text-3);font-size:12px;padding:4px 0">No items</div>'}</div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:4px">
-        Stored total: <strong id="ef-exp-total">${peso(entry.totalExpenses||0)}</strong>
+      <div id="ef-exp-rows">${makeRows('ef-exp', entry.expenses||[])}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <button onclick="efAddRow('ef-exp')" style="font-size:12px;color:var(--green);border:1.5px dashed var(--green);background:var(--green-light);border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600">+ Add Row</button>
+        <span style="font-size:12px;color:var(--text-3)">Total: <strong id="ef-exp-total">${peso(entry.totalExpenses||0)}</strong></span>
       </div>
     </div>
 
     <div style="background:var(--yellow);border-radius:10px;padding:10px 14px;margin:8px 0;border:1.5px solid var(--orange-light)">
-      <div style="font-size:12px;font-weight:700;color:var(--orange-text);margin-bottom:6px">
-        ⭐ MISC EXPENSES <span style="font-weight:400;color:var(--text-2)">(This is what PRF uses! PRF = GrossPrf − LPG − OHD − <u>Misc</u>)</span>
+      <div style="font-size:12px;font-weight:700;color:var(--orange-text);margin-bottom:8px">
+        ⭐ MISC EXPENSES <span style="font-weight:400;color:var(--text-2)">(PRF uses this! PRF = GrossPrf − LPG − OHD − <u>Misc</u>)</span>
       </div>
-      <div id="ef-misc-rows">${miscRows||'<div style="color:var(--text-3);font-size:12px;padding:4px 0">No items</div>'}</div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:4px">
-        Stored total: <strong style="color:var(--orange-dark)" id="ef-misc-total">${peso(entry.totalMisc||0)}</strong>
+      <div id="ef-misc-rows">${makeRows('ef-misc', entry.miscExpenses||[])}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <button onclick="efAddRow('ef-misc')" style="font-size:12px;color:var(--orange-dark);border:1.5px dashed var(--orange);background:var(--orange-light);border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600">+ Add Row</button>
+        <span style="font-size:12px;color:var(--text-3)">Total: <strong style="color:var(--orange-dark)" id="ef-misc-total">${peso(entry.totalMisc||0)}</strong></span>
       </div>
     </div>
 
     <div style="background:var(--green-light);border-radius:10px;padding:9px 14px;margin:6px 0 12px;font-size:12px;color:var(--green-text)">
-      ✅ After saving: PRF, TTS, Net PRF, Food Cost, LPG, Avg Check will auto-recalculate.
+      ✅ Saving will auto-recalculate: PRF, TTS, Net PRF, Food Cost, LPG, Avg Check, Check Balance.
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="saveEditModal('${entry.id}')" style="flex:2">💾 Save &amp; Recalculate</button>
       <button class="btn" style="flex:1;background:var(--red-light);color:var(--red-text);border:1.5px solid var(--red-text)" onclick="deleteEntry('${entry.id}')">🗑 Delete</button>
     </div>`;
   m.classList.add('show');
+}
+
+// ── Edit modal expense row helpers ───────────────────────
+function efAddRow(prefix){
+  const container=document.getElementById(`${prefix}-rows`);
+  const existing=container.querySelectorAll('[id^="'+prefix+'-row-"]');
+  const i=existing.length;
+  const div=document.createElement('div');
+  div.id=`${prefix}-row-${i}`;
+  div.style.cssText='display:flex;gap:6px;margin-bottom:6px';
+  div.innerHTML=`
+    <input type="text" id="${prefix}-desc-${i}" placeholder="Description"
+      oninput="efUpdateTotal('${prefix}')"
+      style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface)">
+    <input type="number" id="${prefix}-amt-${i}" placeholder="0"
+      oninput="efUpdateTotal('${prefix}')"
+      style="width:90px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;text-align:right;background:var(--surface)">
+    <button onclick="efDelRow('${prefix}',${i})" style="width:30px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-3);cursor:pointer;font-size:16px">×</button>`;
+  container.appendChild(div);
+}
+function efDelRow(prefix,i){
+  const row=document.getElementById(`${prefix}-row-${i}`);
+  if(row){row.remove();efUpdateTotal(prefix);}
+}
+function efUpdateTotal(prefix){
+  const container=document.getElementById(`${prefix}-rows`);
+  if(!container) return;
+  const amts=container.querySelectorAll('input[type="number"]');
+  const total=Array.from(amts).reduce((s,el)=>s+(parseFloat(el.value)||0),0);
+  const lbl=document.getElementById(`${prefix}-total`);
+  if(lbl) lbl.textContent='₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2});
+}
+function efReadRows(prefix){
+  const container=document.getElementById(`${prefix}-rows`);
+  if(!container) return [];
+  const rows=container.querySelectorAll('[id^="'+prefix+'-row-"]');
+  const result=[];
+  rows.forEach(row=>{
+    const i=row.id.split('-').pop();
+    const desc=(document.getElementById(`${prefix}-desc-${i}`)?.value||'').trim();
+    const amt=parseFloat(document.getElementById(`${prefix}-amt-${i}`)?.value)||0;
+    if(desc||amt) result.push({desc,amt});
+  });
+  return result;
 }
 
 function saveEditModal(id){
@@ -1192,26 +1234,14 @@ function saveEditModal(id){
   const grabfood=g('grabfood'),foodpanda=g('foodpanda');
   const guestCount=gi('guestCount'),newDate=gs('date');
 
-  // Read expense line items from editable rows
-  const orig=_editEntries[id]||JSON.parse(localStorage.getItem('doms_entries_cache')||'[]').find(e=>e.id===id)||{};
-  const expCount=(orig.expenses||[]).length;
-  const miscCount=(orig.miscExpenses||[]).length;
-  const expenses=[];
-  for(let i=0;i<expCount;i++){
-    const desc=(document.getElementById(`ef-exp-desc-${i}`)?.value||'').trim();
-    const amt=parseFloat(document.getElementById(`ef-exp-amt-${i}`)?.value)||0;
-    if(desc||amt) expenses.push({desc,amt});
-  }
-  const miscExpenses=[];
-  for(let i=0;i<miscCount;i++){
-    const desc=(document.getElementById(`ef-misc-desc-${i}`)?.value||'').trim();
-    const amt=parseFloat(document.getElementById(`ef-misc-amt-${i}`)?.value)||0;
-    if(desc||amt) miscExpenses.push({desc,amt});
-  }
+  // Read expense rows using dynamic row reader
+  const expenses=efReadRows('ef-exp');
+  const miscExpenses=efReadRows('ef-misc');
   const totalExpenses=expenses.reduce((s,x)=>s+x.amt,0);
   const totalMisc=miscExpenses.reduce((s,x)=>s+x.amt,0);
 
   // Preserve phn/pck from original
+  const orig=_editEntries[id]||JSON.parse(localStorage.getItem('doms_entries_cache')||'[]').find(e=>e.id===id)||{};
   const phn=orig.phn||0;
   const branchName=orig.branch||'';
   // Recalculate financials using same formulas
