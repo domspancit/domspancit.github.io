@@ -650,8 +650,8 @@ function saveToken(){
   const t = document.getElementById('setup-token').value.trim();
   if(!t.startsWith('ghp_')){ document.getElementById('token-err').style.display='block'; return; }
   localStorage.setItem('doms_gh_token', t);
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-login').style.display='block';
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
+  document.getElementById('screen-login').classList.add('active');
   document.getElementById('login-overlay').classList.add('show');
 }
 
@@ -826,8 +826,9 @@ function setRole(r,el){
 }
 
 function openLogin(){
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
   document.getElementById('screen-splash').style.display='none';
-  document.getElementById('screen-login').style.display='block';
+  document.getElementById('screen-login').classList.add('active');
   document.getElementById('login-overlay').classList.add('show');
 }
 // ── SESSION MANAGEMENT ────────────────────────────────────
@@ -899,8 +900,8 @@ function doLogin(){
 function logout(){
   clearSession();
   if(inactivityTimer) clearTimeout(inactivityTimer);
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-login').style.display='block';
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
+  document.getElementById('screen-login').classList.add('active');
   document.getElementById('login-overlay').classList.add('show');
   document.getElementById('staff-username').value='';
   document.getElementById('staff-pin').value='';
@@ -908,11 +909,11 @@ function logout(){
   document.getElementById('owner-pass').value='';
 }
 function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='';});
+  const target=document.getElementById(id);
+  target.classList.add('active');
+  target.style.display='';
   document.getElementById('login-overlay').classList.remove('show');
-  document.getElementById('screen-login').style.display='none';
-  document.getElementById('screen-splash').style.display='none';
 }
 
 function initStaffForm(){
