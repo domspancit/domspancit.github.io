@@ -100,6 +100,60 @@
       "top1": "BG-M",
       "top2": "PALABOK-L",
       "top3": ""
+    },
+    {
+      "id": "e1777363951932",
+      "date": "2026-04-28",
+      "branch": "Fairview",
+      "products": {
+        "BG-S": 1,
+        "BG-M": 1,
+        "BG-L": 1,
+        "BG-XL": 1
+      },
+      "vatSalesInput": 0,
+      "cashHand": 0,
+      "gcash": 0,
+      "grabfood": 0,
+      "foodpanda": 0,
+      "guestCount": 0,
+      "expenses": [
+        {
+          "desc": "Basura",
+          "amt": 20
+        }
+      ],
+      "miscExpenses": [],
+      "totalExpenses": 20,
+      "totalMisc": 0,
+      "ohd": 4300,
+      "avgCheck": 0,
+      "gross": 0,
+      "salesLessVat": 0,
+      "vat": 0,
+      "totalVatSales": 0,
+      "cashAfterVat": 0,
+      "checkBalance": -20,
+      "cashSum": 20,
+      "phn": 1403,
+      "pck": 202,
+      "paperCost": 202,
+      "bilaoQty": 4,
+      "bilaoFoodCost": 129,
+      "paperCover": 16,
+      "foodCost": 1201,
+      "grossPrf": -1403,
+      "lpg": 0,
+      "prf": -5703,
+      "tts": -570.3000000000001,
+      "netPrf": -5132.7,
+      "bilaoS": 1,
+      "bilaoM": 1,
+      "bilaoL": 1,
+      "bilaoXL": 1,
+      "top1": "BG-S",
+      "top2": "BG-M",
+      "top3": "BG-L"
     }
   ]
 }
