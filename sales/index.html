@@ -527,7 +527,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="card" id="add-staff-form" style="display:none">
         <div style="font-size:14px;font-weight:700;margin-bottom:12px">New Staff Account</div>
         <div class="field"><label>Username</label><input type="text" id="new-staff-name" placeholder="e.g. maria_fv"></div>
-        <div class="field"><label>PIN</label><input type="password" id="new-staff-pin" placeholder="4-6 digits" maxlength="6" inputmode="numeric"></div>
+        <div class="field"><label>Gmail Address</label><input type="email" id="new-staff-email" placeholder="e.g. maria@gmail.com"></div>
         <div class="field">
           <label>Branch</label>
           <select id="new-staff-branch">
@@ -1535,9 +1535,8 @@ function renderStaffAccounts(){
     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1">
         <div style="font-weight:700;font-size:14px">${a.username}</div>
-        <div style="font-size:12px;color:var(--text-2)">${a.branch}</div>
+        <div style="font-size:12px;color:var(--text-2)">${a.email || '(no email)'} · ${a.branch}</div>
       </div>
-      <button class="btn" style="padding:6px 12px;font-size:12px" onclick="editStaffPin(${i})">Change PIN</button>
       <button class="btn" style="padding:6px 12px;font-size:12px;color:var(--red)" onclick="deleteStaff(${i})">Remove</button>
     </div>
   `).join('');
@@ -1550,25 +1549,25 @@ function showAddStaff(){
 function hideAddStaff(){
   document.getElementById('add-staff-form').style.display='none';
   document.getElementById('new-staff-name').value='';
-  document.getElementById('new-staff-pin').value='';
+  document.getElementById('new-staff-email').value='';
   document.getElementById('new-staff-branch').value='';
   document.getElementById('add-staff-err').style.display='none';
 }
 
 async function addStaffAccount(){
   const name=(document.getElementById('new-staff-name').value||'').trim();
-  const pin=document.getElementById('new-staff-pin').value.trim();
+  const email=(document.getElementById('new-staff-email').value||'').trim().toLowerCase();
   const branch=document.getElementById('new-staff-branch').value;
   const err=document.getElementById('add-staff-err');
   err.style.display='none';
   if(!name){err.textContent='Username is required.';err.style.display='block';return;}
-  if(pin.length<4){err.textContent='PIN must be 4-6 digits.';err.style.display='block';return;}
+  if(!email||!email.includes('@')){err.textContent='A valid Gmail address is required.';err.style.display='block';return;}
   if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
   const list=getStaffAccounts();
-  if(list.find(a=>a.username.toLowerCase()===name.toLowerCase())){
-    err.textContent='Username already exists.';err.style.display='block';return;
+  if(list.find(a=>(a.email||'').toLowerCase()===email)){
+    err.textContent='This email is already registered.';err.style.display='block';return;
   }
-  list.push({username:name,pin,branch});
+  list.push({username:name,email,branch});
   const ok = await saveStaffAccounts(list);
   if(ok){
     hideAddStaff();
@@ -1585,16 +1584,7 @@ async function deleteStaff(i){
   if(ok) renderStaffAccounts();
   else alert('Failed to sync deletion.');
 }
-async function editStaffPin(i){
-  const list=getStaffAccounts();
-  const newPin=prompt('New PIN for ' + list[i].username + ':');
-  if(!newPin) return;
-  if(newPin.length<4){alert('PIN must be at least 4 digits.');return;}
-  list[i].pin=newPin.trim();
-  const ok = await saveStaffAccounts(list);
-  if(ok) renderStaffAccounts();
-  else alert('Failed to sync updated PIN.');
-}
+// PIN editing removed — staff now authenticate via Google Sign-In
 
 
 function uploadBrandPhoto(input){
