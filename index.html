@@ -681,13 +681,14 @@ const VAT_RATE=0.12,OWNER_PASS='owner123';
 function getStaffAccounts(){
   try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
 }
-async function saveStaffAccounts(list){
+async async function saveStaffAccounts(list){
   showSaving(true);
-  const d = await ghGet() || { entries: [] };
+  const gh = await ghGet();
+  let d = gh.data || { entries: [] };
   d.staffAccounts = list;
-  const ok = await ghSave(d);
+  const success = await ghSave(d);
   showSaving(false);
-  if(ok) {
+  if(success) {
     localStorage.setItem('doms_staff_accounts',JSON.stringify(list));
     return true;
   }
@@ -742,10 +743,18 @@ function resetInactivityTimer(){
   },{passive:true});
 });
 
-function doLogin(){
+async function doLogin(){
   const isOwner=document.querySelectorAll('.role-tab')[1].classList.contains('active');
   const err=document.getElementById('login-err');
   err.style.display='none';
+  err.textContent='Verifying...';err.style.display='block';
+  const gh = await ghGet();
+  if(gh && gh.data){
+    if(gh.data.ownerPass) localStorage.setItem('doms_owner_pass', gh.data.ownerPass);
+    if(gh.data.staffAccounts) localStorage.setItem('doms_staff_accounts', JSON.stringify(gh.data.staffAccounts));
+  }
+  err.style.display='none';
+  err.textContent='';
   if(isOwner){
     if(document.getElementById('owner-pass').value===getOwnerPass()){
       saveSession('owner',null,null);
@@ -1514,7 +1523,7 @@ function seedDemo(){
 }
 
 
-function changeOwnerPassword(){
+async function changeOwnerPassword(){
   const old=document.getElementById('set-old-pass').value;
   const nw=document.getElementById('set-new-pass').value;
   const cf=document.getElementById('set-confirm-pass').value;
@@ -1525,11 +1534,21 @@ function changeOwnerPassword(){
   if(old!==storedPass){err.textContent='Current password is incorrect.';err.style.display='block';return;}
   if(nw.length<4){err.textContent='New password must be at least 4 characters.';err.style.display='block';return;}
   if(nw!==cf){err.textContent='New passwords do not match.';err.style.display='block';return;}
-  localStorage.setItem('doms_owner_pass',nw);
-  document.getElementById('set-old-pass').value='';
-  document.getElementById('set-new-pass').value='';
-  document.getElementById('set-confirm-pass').value='';
-  ok.style.display='block';
+  showSaving(true);
+  const gh = await ghGet();
+  let d = gh.data || { entries: [] };
+  d.ownerPass = nw;
+  const success = await ghSave(d);
+  showSaving(false);
+  if(success){
+    localStorage.setItem('doms_owner_pass',nw);
+    document.getElementById('set-old-pass').value='';
+    document.getElementById('set-new-pass').value='';
+    document.getElementById('set-confirm-pass').value='';
+    ok.style.display='block';
+  } else {
+    err.textContent='Failed to sync password to GitHub.';err.style.display='block';
+  }
 }
 
 function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
@@ -1562,7 +1581,7 @@ function hideAddStaff(){
   document.getElementById('add-staff-err').style.display='none';
 }
 
-function addStaffAccount(){
+async function addStaffAccount(){
   const name=(document.getElementById('new-staff-name').value||'').trim();
   const pin=document.getElementById('new-staff-pin').value.trim();
   const branch=document.getElementById('new-staff-branch').value;
@@ -1576,28 +1595,33 @@ function addStaffAccount(){
     err.textContent='Username already exists.';err.style.display='block';return;
   }
   list.push({username:name,pin,branch});
-  saveStaffAccounts(list);
-  hideAddStaff();
-  renderStaffAccounts();
+  const ok = await saveStaffAccounts(list);
+  if(ok){
+    hideAddStaff();
+    renderStaffAccounts();
+  } else {
+    err.textContent='Failed to sync to GitHub.';err.style.display='block';
+  }
 }
-
-function deleteStaff(i){
+async function deleteStaff(i){
   if(!confirm('Remove this staff account?')) return;
   const list=getStaffAccounts();
   list.splice(i,1);
-  saveStaffAccounts(list);
-  renderStaffAccounts();
+  const ok = await saveStaffAccounts(list);
+  if(ok) renderStaffAccounts();
+  else alert('Failed to sync deletion.');
 }
-
-function editStaffPin(i){
+async function editStaffPin(i){
   const list=getStaffAccounts();
-  const newPin=prompt(`New PIN for ${list[i].username}:`);
+  const newPin=prompt('New PIN for ' + list[i].username + ':');
   if(!newPin) return;
   if(newPin.length<4){alert('PIN must be at least 4 digits.');return;}
   list[i].pin=newPin.trim();
-  saveStaffAccounts(list);
-  renderStaffAccounts();
+  const ok = await saveStaffAccounts(list);
+  if(ok) renderStaffAccounts();
+  else alert('Failed to sync updated PIN.');
 }
+
 
 function uploadBrandPhoto(input){
   const file=input.files[0];

@@ -1,0 +1,178 @@
+--- async function getEntries ---
+async function getEntries() {
+  try {
+    const { data } = await ghGet();
+    const entries = data?.entries || [];
+    localStorage.setItem('doms_entries_cache', JSON.stringify(entries));
+    return entries;
+  } catch(e) {
+    const cached = localStorage.getItem('doms_entries_cache');
+    return cached ? JSON.parse(cached) : [];
+  }
+}
+
+
+--- async function saveEntry ---
+async function saveEntry(entry) {
+  showSaving(true);
+  const { data } = await ghGet();
+  const entries = data?.entries || [];
+  entries.push(entry);
+  const ok = await ghSave({ entries });
+  showSaving(false);
+  if (!ok) { alert('Save failed. Check your connection.'); return false; }
+  localStorage.setItem('doms_entries_cache', JSON.stringify(entries));
+  return true;
+}
+
+async 
+--- async function ghGet ---
+async function ghGet() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${DATA_FILE}`, {
+      headers: { 'Authorization': 'token ' + getToken(), 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (r.status === 404) return { entries: [] };
+    const j = await r.json();
+    const content = JSON.parse(atob(j.content.replace(/\n/g, '')));
+    return { data: content, sha: j.sha };
+  } catch(e) { return { entries: [] }; }
+}
+
+async 
+--- async function ghSave ---
+async function ghSave(entries) {
+  const existing = await ghGet();
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(entries, null, 2))));
+  const body = { message: 'Update sales data', content };
+  if (existing.sha) body.sha = existing.sha;
+  const r = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${DATA_FILE}`, {
+    method: 'PUT',
+    headers: { 'Authorization': 'token ' + getToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.ok;
+}
+
+async 
+--- function getOwnerPass ---
+function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
+
+
+--- function changeOwnerPassword ---
+function changeOwnerPassword(){
+  const old=document.getElementById('set-old-pass').value;
+  const nw=document.getElementById('set-new-pass').value;
+  const cf=document.getElementById('set-confirm-pass').value;
+  const err=document.getElementById('pass-err');
+  const ok=document.getElementById('pass-ok');
+  err.style.display='none'; ok.style.display='none';
+  const storedPass=localStorage.getItem('doms_owner_pass')||OWNER_PASS;
+  if(old!==storedPass){err.textContent='Current password is incorrect.';err.style.display='block';return;}
+  if(nw.length<4){err.textContent='New password must be at least 4 characters.';err.style.display='block';return;}
+  if(nw!==cf){err.textContent='New passwords do not match.';err.style.display='block';return;}
+  localStorage.setItem('doms_owner_pass',nw);
+  document.getElementById('set-old-pass').value='';
+  document.getElementById('set-new-pass').value='';
+  document.getElementById('set-confirm-pass').value='';
+  ok.style.display='block';
+}
+
+
+--- function getStaffAccounts ---
+function getStaffAccounts(){
+  try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
+}
+async 
+--- function saveStaffAccounts ---
+function saveStaffAccounts(list){
+  showSaving(true);
+  const d = await ghGet() || { entries: [] };
+  d.staffAccounts = list;
+  const ok = await ghSave(d);
+  showSaving(false);
+  if(ok) {
+    localStorage.setItem('doms_staff_accounts',JSON.stringify(list));
+    return true;
+  }
+  return false;
+}
+let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null,activeDashBranch='all';
+
+// saveEntry and getEntries replaced by async GitHub versions above
+
+
+--- function addStaffAccount ---
+function addStaffAccount(){
+  const name=(document.getElementById('new-staff-name').value||'').trim();
+  const pin=document.getElementById('new-staff-pin').value.trim();
+  const branch=document.getElementById('new-staff-branch').value;
+  const err=document.getElementById('add-staff-err');
+  err.style.display='none';
+  if(!name){err.textContent='Username is required.';err.style.display='block';return;}
+  if(pin.length<4){err.textContent='PIN must be 4-6 digits.';err.style.display='block';return;}
+  if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
+  const list=getStaffAccounts();
+  if(list.find(a=>a.username.toLowerCase()===name.toLowerCase())){
+    err.textContent='Username already exists.';err.style.display='block';return;
+  }
+  list.push({username:name,pin,branch});
+  saveStaffAccounts(list);
+  hideAddStaff();
+  renderStaffAccounts();
+}
+
+
+--- function deleteStaff ---
+function deleteStaff(i){
+  if(!confirm('Remove this staff account?')) return;
+  const list=getStaffAccounts();
+  list.splice(i,1);
+  saveStaffAccounts(list);
+  renderStaffAccounts();
+}
+
+
+--- function editStaffPin ---
+function editStaffPin(i){
+  const list=getStaffAccounts();
+  const newPin=prompt(`New PIN for ${list[i].username}:`);
+  if(!newPin) return;
+  if(newPin.length<4){alert('PIN must be at least 4 digits.');return;}
+  list[i].pin=newPin.trim();
+  saveStaffAccounts(list);
+  renderStaffAccounts();
+}
+
+
+--- function doLogin ---
+function doLogin(){
+  const isOwner=document.querySelectorAll('.role-tab')[1].classList.contains('active');
+  const err=document.getElementById('login-err');
+  err.style.display='none';
+  if(isOwner){
+    if(document.getElementById('owner-pass').value===getOwnerPass()){
+      saveSession('owner',null,null);
+      resetInactivityTimer();
+      showScreen('screen-owner');initOwnerDashboard();
+    }
+    else{err.textContent='Incorrect password.';err.style.display='block';}
+  } else {
+    const username=(document.getElementById('staff-username').value||'').trim();
+    const pin=document.getElementById('staff-pin').value;
+    if(!username){err.textContent='Please enter your username.';err.style.display='block';return;}
+    if(!pin){err.textContent='Please enter your PIN.';err.style.display='block';return;}
+    const accounts=getStaffAccounts();
+    const account=accounts.find(a=>a.username.toLowerCase()===username.toLowerCase()&&a.pin===pin);
+    if(account){
+      currentBranch=account.branch;
+      currentStaff=account.username;
+      saveSession('staff',account.branch,account.username);
+      resetInactivityTimer();
+      document.getElementById('staff-branch-label').textContent=account.branch;
+      document.getElementById('staff-date-label').textContent=new Date().toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+      showScreen('screen-staff');initStaffForm();
+    } else {err.textContent='Incorrect username or PIN.';err.style.display='block';}
+  }
+}
+
