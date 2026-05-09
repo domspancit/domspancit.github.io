@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Dom's Pancit – POS System</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -443,12 +444,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <button class="btn btn-green btn-sm" onclick="applyRange()">Apply</button>
         </div>
       </div>
-      <!-- Branch filter -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
         <button id="dbf-all" class="dbf-btn dbf-active" onclick="setDashBranch('all',this)">All Branches</button>
-        <button id="dbf-Fairview" class="dbf-btn" onclick="setDashBranch('Fairview',this)">Fairview</button>
-        <button id="dbf-Zabarte" class="dbf-btn" onclick="setDashBranch('Zabarte',this)">Zabarte</button>
-        <button id="dbf-Don Jose" class="dbf-btn" onclick="setDashBranch('Don Jose',this)">Don Jose</button>
+        <span id="branch-filter-buttons"></span>
       </div>
       <div class="section-label">Branches</div>
       <div class="branch-cards" id="branch-summary-cards"></div>
@@ -469,11 +467,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div id="owner-sales" style="display:none">
       <div class="card" style="margin-bottom:12px">
         <div style="font-size:14px;font-weight:700;margin-bottom:12px">Select Branch to Enter Sales</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="ownerStartSales('Fairview')" style="flex:1;min-width:120px">Fairview</button>
-          <button class="btn btn-primary" onclick="ownerStartSales('Zabarte')" style="flex:1;min-width:120px">Zabarte</button>
-          <button class="btn btn-primary" onclick="ownerStartSales('Don Jose')" style="flex:1;min-width:120px">Don Jose</button>
-        </div>
+        <div id="owner-sales-branches" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
       <div id="owner-sales-notice" style="color:var(--text-2);font-size:13px;text-align:center;padding:20px 0">
         Choose a branch above to start entering sales data.
@@ -482,10 +476,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <div id="owner-reports" style="display:none">
       <div class="filter-row">
-        <select id="report-branch">
-          <option value="all">All Branches</option>
-          <option>Fairview</option><option>Zabarte</option><option>Don Jose</option>
-        </select>
+        <select id="report-branch"></select>
         <input type="month" id="report-month">
       </div>
       <div id="report-content"></div>
@@ -493,10 +484,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <div id="owner-products" style="display:none">
       <div class="filter-row">
-        <select id="prod-branch-filter">
-          <option value="all">All Branches</option>
-          <option>Fairview</option><option>Zabarte</option><option>Don Jose</option>
-        </select>
+        <select id="prod-branch-filter"></select>
         <input type="month" id="prod-month">
       </div>
       <div class="card"><div class="bar-chart" id="product-sales-chart"></div></div>
@@ -544,10 +532,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="field"><label>Gmail Address</label><input type="email" id="new-staff-email" placeholder="e.g. maria@gmail.com"></div>
         <div class="field">
           <label>Branch</label>
-          <select id="new-staff-branch">
-            <option value="">Select branch...</option>
-            <option>Fairview</option><option>Zabarte</option><option>Don Jose</option>
-          </select>
+          <select id="new-staff-branch"></select>
         </div>
         <div class="err" id="add-staff-err" style="display:none"></div>
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -555,6 +540,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <button class="btn" onclick="hideAddStaff()" style="flex:1">Cancel</button>
         </div>
       </div>
+
+      <!-- Branch Management -->
+      <div class="section-label" style="margin-top:20px">🏪 Branch Management</div>
+      <div class="card" id="branch-mgmt-card">
+        <div id="branch-mgmt-list"></div>
+        <button class="btn btn-green" onclick="showAddBranch()" style="margin-top:12px;width:100%">+ Add Branch</button>
+      </div>
+      <div class="card" id="add-branch-form" style="display:none">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">New Branch</div>
+        <div class="field"><label>Branch Name</label><input type="text" id="new-branch-name" placeholder="e.g. Cubao"></div>
+        <div class="field"><label>Location / Address</label><input type="text" id="new-branch-location" placeholder="e.g. 123 Aurora Blvd"></div>
+        <div class="field"><label>OHD (Overhead) ₱</label><input type="number" id="new-branch-ohd" placeholder="e.g. 4000" min="0"></div>
+        <div class="err" id="add-branch-err" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary" onclick="addBranch()" style="flex:1">Save Branch</button>
+          <button class="btn" onclick="hideAddBranch()" style="flex:1">Cancel</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -582,55 +586,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script>
 
-// ── GOOGLE APPS SCRIPT API CONFIG ────────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_9NRWiNkZpc7UbNEOFiQ4sO5zh9j6awtNClbGTj5U9QgJ2Lfyxf31TEnppVPl8ORf/exec'; // Replace with your GAS Web App URL
-const GOOGLE_CLIENT_ID = '402805490159-ggs9trsbc1sv70h9nr4a68u7e1lrvij5.apps.googleusercontent.com';  // Replace with your Google OAuth Client ID
+// ── SUPABASE CONFIG ──────────────────────────────────────
+const SUPABASE_URL = 'https://xhfhwmvnomagdfwfbxdb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-7aKF4MdPed3NCg7A94laQ_JMgZ454I';
+const GOOGLE_CLIENT_ID = '402805490159-ggs9trsbc1sv70h9nr4a68u7e1lrvij5.apps.googleusercontent.com';
+
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let googleIdToken = null;
 let googleUserInfo = null;
 
-// ── API HELPER ───────────────────────────────────────────
-async function apiCall(action, extra = {}) {
-  if (!googleIdToken) { alert('Session expired. Please sign in again.'); logout(); return null; }
-  try {
-    showSaving(true);
-    const payload = JSON.stringify({ action, idToken: googleIdToken, ...extra });
-    // Apps Script redirects POST→GET (302), losing the body.
-    // Workaround: send as GET with payload in URL parameter.
-    const url = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
-    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
-    const json = await r.json();
-    showSaving(false);
-    if (!json.ok) { console.error('API error:', json.error); }
-    return json;
-  } catch (e) {
-    showSaving(false);
-    console.error('API call failed:', e);
-    return null;
-  }
-}
-
-// ── DATA LAYER (via Apps Script proxy) ───────────────────
-async function saveEntry(entry) {
-  const result = await apiCall('saveEntry', { entry });
-  if (!result || !result.ok) {
-    alert(result?.error || 'Save failed. Check your connection.');
-    return false;
-  }
-  return true;
-}
-
-async function getEntries() {
-  const result = await apiCall('getEntries');
-  if (result && result.ok) {
-    const entries = result.entries || [];
-    localStorage.setItem('doms_entries_cache', JSON.stringify(entries));
-    return entries;
-  }
-  const cached = localStorage.getItem('doms_entries_cache');
-  return cached ? JSON.parse(cached) : [];
-}
-
+// ── SAVING INDICATOR ─────────────────────────────────────
 function showSaving(on) {
   let el = document.getElementById('saving-indicator');
   if (!el) {
@@ -643,7 +609,49 @@ function showSaving(on) {
   el.style.display = on ? 'block' : 'none';
 }
 
-const BRANCHES=[{id:'br-01',name:'Fairview',ohd:4300},{id:'br-02',name:'Zabarte',ohd:3200},{id:'br-03',name:'Don Jose',ohd:4000}];
+// ── DATA LAYER (Supabase) ────────────────────────────────
+async function saveEntry(entry) {
+  try {
+    showSaving(true);
+    const { error } = await _sb.from('entries').upsert({
+      id: entry.id,
+      date: entry.date,
+      branch: entry.branch,
+      data: entry,
+      submitted_by: googleUserInfo?.email || ''
+    }, { onConflict: 'id' });
+    showSaving(false);
+    if (error) { console.error('Save error:', error); alert('Save failed: ' + error.message); return false; }
+    // Update local cache
+    const cached = JSON.parse(localStorage.getItem('doms_entries_cache') || '[]');
+    const idx = cached.findIndex(e => e.id === entry.id);
+    if (idx >= 0) cached[idx] = entry; else cached.push(entry);
+    localStorage.setItem('doms_entries_cache', JSON.stringify(cached));
+    return true;
+  } catch (e) {
+    showSaving(false);
+    console.error('Save failed:', e);
+    alert('Save failed. Check your connection.');
+    return false;
+  }
+}
+
+async function getEntries() {
+  try {
+    const { data, error } = await _sb.from('entries').select('data').order('date', { ascending: false });
+    if (error) { console.error('Fetch error:', error); throw error; }
+    const entries = (data || []).map(row => row.data);
+    localStorage.setItem('doms_entries_cache', JSON.stringify(entries));
+    return entries;
+  } catch (e) {
+    console.error('getEntries failed, using cache:', e);
+    const cached = localStorage.getItem('doms_entries_cache');
+    return cached ? JSON.parse(cached) : [];
+  }
+}
+
+// ── BRANCHES (loaded dynamically from Supabase) ──────────
+let BRANCHES = [];
 const PRODUCTS=[
   {id:'BG-S',cat:'noodle',name:'BG-S',phn:156},{id:'BG-M',cat:'noodle',name:'BG-M',phn:284},{id:'BG-L',cat:'noodle',name:'BG-L',phn:414},{id:'BG-XL',cat:'noodle',name:'BG-XL',phn:549},
   {id:'MIKI-S',cat:'noodle',name:'MIKI-S',phn:164},{id:'MIKI-M',cat:'noodle',name:'MIKI-M',phn:300},{id:'MIKI-L',cat:'noodle',name:'MIKI-L',phn:438},{id:'MIKI-XL',cat:'noodle',name:'MIKI-XL',phn:581},
@@ -662,17 +670,46 @@ const PRODUCTS=[
   {id:'WATER',cat:'addon',name:'Water',phn:13},{id:'COKE',cat:'addon',name:'Coke',phn:38},{id:'KOPIKO',cat:'addon',name:'Kopiko',phn:19}
 ];
 const VAT_RATE=0.12;
-// Staff accounts stored in localStorage (managed by owner)
+// Staff accounts (managed via Supabase)
 function getStaffAccounts(){
   try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
 }
-async function saveStaffAccounts(list){
-  const result = await apiCall('saveStaffAccounts', { staffAccounts: list });
-  if(result && result.ok) {
+async function loadStaffAccountsFromDB(){
+  try {
+    const { data, error } = await _sb.from('staff_accounts').select('*');
+    if(error) throw error;
+    const list = (data||[]).map(a=>({username:a.username,email:a.email,branch:a.branch_name}));
     localStorage.setItem('doms_staff_accounts',JSON.stringify(list));
-    return true;
-  }
-  return false;
+    return list;
+  } catch(e){ console.error('loadStaff failed:',e); return getStaffAccounts(); }
+}
+async function saveStaffAccounts(list){
+  // Not used directly anymore - use addStaffAccount/deleteStaff instead
+  localStorage.setItem('doms_staff_accounts',JSON.stringify(list));
+  return true;
+}
+async function loadBranches(){
+  try {
+    const { data, error } = await _sb.from('branches').select('*').order('name');
+    if(error) throw error;
+    BRANCHES = (data||[]).map(b=>({id:b.id,name:b.name,ohd:Number(b.ohd),location:b.location||''}));
+  } catch(e){ console.error('loadBranches failed:',e); }
+}
+function populateBranchUI(){
+  // Dashboard filter buttons
+  const dbf = document.getElementById('branch-filter-buttons');
+  if(dbf) dbf.innerHTML = BRANCHES.map(b=>`<button class="dbf-btn" onclick="setDashBranch('${b.name}',this)">${b.name}</button>`).join('');
+  // All branch <select> dropdowns
+  const branchOptionsAll = '<option value="all">All Branches</option>' + BRANCHES.map(b=>`<option>${b.name}</option>`).join('');
+  const branchOptions = BRANCHES.map(b=>`<option>${b.name}</option>`).join('');
+  ['report-branch','prod-branch-filter'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=branchOptionsAll;
+  });
+  const staffBr=document.getElementById('new-staff-branch');
+  if(staffBr) staffBr.innerHTML='<option value="">Select branch...</option>'+branchOptions;
+  // Owner sales entry buttons
+  const osb=document.getElementById('owner-sales-branches');
+  if(osb) osb.innerHTML=BRANCHES.map(b=>`<button class="btn btn-primary" onclick="ownerStartSales('${b.name}')" style="flex:1;min-width:120px">${b.name}</button>`).join('');
 }
 let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null,activeDashBranch='all';
 
@@ -707,34 +744,73 @@ function initGoogleSignIn() {
 
 async function handleGoogleCredentialResponse(response) {
   const err = document.getElementById('login-err');
-  if (err) { err.textContent = 'Verifying...'; err.style.display = 'block'; }
+  if (err) { err.textContent = 'Verifying with Supabase...'; err.style.display = 'block'; }
   googleIdToken = response.credential;
 
-  const result = await apiCall('authenticate');
+  try {
+    // Sign in to Supabase using Google ID token
+    const { data: authData, error: authError } = await _sb.auth.signInWithIdToken({
+      provider: 'google',
+      token: googleIdToken
+    });
 
-  if (!result || !result.ok) {
-    if (err) { err.textContent = result?.error || 'Authentication failed. Your email may not be authorized.'; err.style.display = 'block'; }
+    if (authError) throw authError;
+
+    // Decode email/name from the Google JWT
+    const payload = JSON.parse(atob(googleIdToken.split('.')[1]));
+    const email = payload.email;
+    const name = payload.name || email.split('@')[0];
+    const picture = payload.picture || '';
+
+    // Load branches from DB
+    await loadBranches();
+    populateBranchUI();
+
+    // Determine role by checking Supabase tables
+    const { data: ownerCheck } = await _sb.from('owner_emails').select('email').eq('email', email.toLowerCase()).maybeSingle();
+    let role = null, branch = null;
+
+    if (ownerCheck) {
+      role = 'owner';
+      // Also load staff accounts for owner
+      await loadStaffAccountsFromDB();
+    } else {
+      const { data: staffCheck } = await _sb.from('staff_accounts').select('*').ilike('email', email).maybeSingle();
+      if (staffCheck) {
+        role = 'staff';
+        branch = staffCheck.branch_name;
+      }
+    }
+
+    if (!role) {
+      if (err) { err.textContent = 'Authentication failed. Your email is not authorized.'; err.style.display = 'block'; }
+      await _sb.auth.signOut();
+      googleIdToken = null;
+      return;
+    }
+
+    if (err) err.style.display = 'none';
+    googleUserInfo = { email, name, picture, role, branch };
+
+    if (role === 'owner') {
+      saveSession('owner', null, name);
+      resetInactivityTimer();
+      showScreen('screen-owner');
+      initOwnerDashboard();
+    } else if (role === 'staff') {
+      currentBranch = branch;
+      currentStaff = name;
+      saveSession('staff', branch, name);
+      resetInactivityTimer();
+      document.getElementById('staff-branch-label').textContent = branch;
+      document.getElementById('staff-date-label').textContent = new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+      showScreen('screen-staff');
+      initStaffForm();
+    }
+  } catch (e) {
+    console.error('Auth error:', e);
+    if (err) { err.textContent = 'Authentication failed: ' + (e.message || 'Unknown error'); err.style.display = 'block'; }
     googleIdToken = null;
-    return;
-  }
-
-  if (err) err.style.display = 'none';
-  googleUserInfo = { email: result.email, name: result.name, picture: result.picture, role: result.role, branch: result.branch };
-
-  if (result.role === 'owner') {
-    saveSession('owner', null, result.name);
-    resetInactivityTimer();
-    showScreen('screen-owner');
-    initOwnerDashboard();
-  } else if (result.role === 'staff') {
-    currentBranch = result.branch;
-    currentStaff = result.name;
-    saveSession('staff', result.branch, result.name);
-    resetInactivityTimer();
-    document.getElementById('staff-branch-label').textContent = result.branch;
-    document.getElementById('staff-date-label').textContent = new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-    showScreen('screen-staff');
-    initStaffForm();
   }
 }
 
@@ -773,6 +849,7 @@ function resetInactivityTimer(){
 
 function logout(){
   clearSession();
+  _sb.auth.signOut();
   if(inactivityTimer) clearTimeout(inactivityTimer);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-login').style.display='block';
@@ -1047,7 +1124,7 @@ async function renderStaffHistory(){
 }
 
 function ownerTab(tab,el){
-  if(tab==='settings'){renderStaffAccounts();loadBrandPhoto();}
+  if(tab==='settings'){renderStaffAccounts();renderBranchMgmt();loadBrandPhoto();}
   ['dashboard','reports','products','settings','sales'].forEach(t=>{const el=document.getElementById('owner-'+t);if(el)el.style.display=t===tab?'block':'none';});
   document.querySelectorAll('#screen-owner .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
   if(tab==='reports')renderReports();
@@ -1124,12 +1201,11 @@ async function quickRecalc(id){
 async function deleteEntry(id){
   if(!confirm('Delete this entry? This cannot be undone.')) return;
   showSaving(true);
-  const {data}=await ghGet();
-  const entries=(data?.entries||[]).filter(e=>e.id!==id);
-  const ok=await ghSave({entries});
+  const { error } = await _sb.from('entries').delete().eq('id', id);
   showSaving(false);
-  if(!ok){alert('Delete failed. Check your connection.');return;}
-  localStorage.setItem('doms_entries_cache',JSON.stringify(entries));
+  if(error){alert('Delete failed: ' + error.message);return;}
+  const cached=JSON.parse(localStorage.getItem('doms_entries_cache')||'[]').filter(e=>e.id!==id);
+  localStorage.setItem('doms_entries_cache',JSON.stringify(cached));
   closeEditModal();
   renderReports();
   initOwnerDashboard();
@@ -1137,12 +1213,16 @@ async function deleteEntry(id){
 
 async function updateEntry(id,patch){
   showSaving(true);
-  const {data}=await ghGet();
-  const entries=(data?.entries||[]).map(e=>e.id===id?{...e,...patch}:e);
-  const ok=await ghSave({entries});
+  // Get current entry from cache, apply patch
+  const cached=JSON.parse(localStorage.getItem('doms_entries_cache')||'[]');
+  const entry=cached.find(e=>e.id===id);
+  if(!entry){showSaving(false);alert('Entry not found.');return;}
+  const updated={...entry,...patch};
+  const { error } = await _sb.from('entries').update({ data: updated }).eq('id', id);
   showSaving(false);
-  if(!ok){alert('Save failed. Check your connection.');return;}
-  localStorage.setItem('doms_entries_cache',JSON.stringify(entries));
+  if(error){alert('Save failed: ' + error.message);return;}
+  const newCached=cached.map(e=>e.id===id?updated:e);
+  localStorage.setItem('doms_entries_cache',JSON.stringify(newCached));
   closeEditModal();
   renderReports();
   initOwnerDashboard();
@@ -1556,21 +1636,11 @@ async function changeOwnerPassword(){
   if(old!==storedPass){err.textContent='Current password is incorrect.';err.style.display='block';return;}
   if(nw.length<4){err.textContent='New password must be at least 4 characters.';err.style.display='block';return;}
   if(nw!==cf){err.textContent='New passwords do not match.';err.style.display='block';return;}
-  showSaving(true);
-  const gh = await ghGet();
-  let d = gh.data || { entries: [] };
-  d.ownerPass = nw;
-  const success = await ghSave(d);
-  showSaving(false);
-  if(success){
-    localStorage.setItem('doms_owner_pass',nw);
-    document.getElementById('set-old-pass').value='';
-    document.getElementById('set-new-pass').value='';
-    document.getElementById('set-confirm-pass').value='';
-    ok.style.display='block';
-  } else {
-    err.textContent='Failed to sync password to GitHub.';err.style.display='block';
-  }
+  localStorage.setItem('doms_owner_pass',nw);
+  document.getElementById('set-old-pass').value='';
+  document.getElementById('set-new-pass').value='';
+  document.getElementById('set-confirm-pass').value='';
+  ok.style.display='block';
 }
 
 function getOwnerPass(){ return localStorage.getItem('doms_owner_pass')||OWNER_PASS; }
@@ -1611,28 +1681,108 @@ async function addStaffAccount(){
   if(!name){err.textContent='Username is required.';err.style.display='block';return;}
   if(!email||!email.includes('@')){err.textContent='A valid Gmail address is required.';err.style.display='block';return;}
   if(!branch){err.textContent='Please select a branch.';err.style.display='block';return;}
-  const list=getStaffAccounts();
-  if(list.find(a=>(a.email||'').toLowerCase()===email)){
-    err.textContent='This email is already registered.';err.style.display='block';return;
+  showSaving(true);
+  const { error } = await _sb.from('staff_accounts').insert({ username: name, email, branch_name: branch });
+  showSaving(false);
+  if(error){
+    if(error.code==='23505') err.textContent='This email is already registered.';
+    else err.textContent='Failed to add staff: '+error.message;
+    err.style.display='block';return;
   }
-  list.push({username:name,email,branch});
-  const ok = await saveStaffAccounts(list);
-  if(ok){
-    hideAddStaff();
-    renderStaffAccounts();
-  } else {
-    err.textContent='Failed to sync to GitHub.';err.style.display='block';
-  }
+  await loadStaffAccountsFromDB();
+  hideAddStaff();
+  renderStaffAccounts();
 }
 async function deleteStaff(i){
   if(!confirm('Remove this staff account?')) return;
   const list=getStaffAccounts();
-  list.splice(i,1);
-  const ok = await saveStaffAccounts(list);
-  if(ok) renderStaffAccounts();
-  else alert('Failed to sync deletion.');
+  const staff=list[i];
+  if(!staff) return;
+  showSaving(true);
+  const { error } = await _sb.from('staff_accounts').delete().ilike('email', staff.email);
+  showSaving(false);
+  if(error){alert('Failed to delete: '+error.message);return;}
+  await loadStaffAccountsFromDB();
+  renderStaffAccounts();
 }
+
 // PIN editing removed — staff now authenticate via Google Sign-In
+
+// ── BRANCH MANAGEMENT ─────────────────────────────────────
+function renderBranchMgmt(){
+  const el=document.getElementById('branch-mgmt-list');
+  if(!el) return;
+  if(!BRANCHES.length){el.innerHTML='<div style="color:var(--text-2);font-size:13px">No branches yet.</div>';return;}
+  el.innerHTML=BRANCHES.map((b,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:700;font-size:14px">${b.name}</div>
+        <div style="font-size:12px;color:var(--text-2)">${b.location||'No address set'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:13px">
+        <span style="color:var(--text-2)">OHD ₱</span>
+        <input type="number" value="${b.ohd}" style="width:80px;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="updateBranchField('${b.id}','ohd',this.value)">
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:13px;flex:1;min-width:140px">
+        <span style="color:var(--text-2)">📍</span>
+        <input type="text" value="${b.location||''}" placeholder="address" style="flex:1;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="updateBranchField('${b.id}','location',this.value)">
+      </div>
+      <button onclick="deleteBranch('${b.id}','${b.name}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer">✕</button>
+    </div>
+  `).join('');
+}
+function showAddBranch(){
+  document.getElementById('add-branch-form').style.display='block';
+  document.getElementById('new-branch-name').focus();
+}
+function hideAddBranch(){
+  document.getElementById('add-branch-form').style.display='none';
+  document.getElementById('new-branch-name').value='';
+  document.getElementById('new-branch-location').value='';
+  document.getElementById('new-branch-ohd').value='';
+  document.getElementById('add-branch-err').style.display='none';
+}
+async function addBranch(){
+  const name=(document.getElementById('new-branch-name').value||'').trim();
+  const location=(document.getElementById('new-branch-location').value||'').trim();
+  const ohd=Number(document.getElementById('new-branch-ohd').value)||0;
+  const err=document.getElementById('add-branch-err');
+  err.style.display='none';
+  if(!name){err.textContent='Branch name is required.';err.style.display='block';return;}
+  showSaving(true);
+  const { error } = await _sb.from('branches').insert({ name, ohd, location });
+  showSaving(false);
+  if(error){
+    if(error.code==='23505') err.textContent='A branch with this name already exists.';
+    else err.textContent='Failed to add: '+error.message;
+    err.style.display='block';return;
+  }
+  await loadBranches();
+  populateBranchUI();
+  renderBranchMgmt();
+  hideAddBranch();
+}
+async function deleteBranch(id,name){
+  if(!confirm('Delete branch "'+name+'"? Existing entries for this branch will NOT be deleted.')) return;
+  showSaving(true);
+  const { error } = await _sb.from('branches').delete().eq('id', id);
+  showSaving(false);
+  if(error){alert('Failed to delete: '+error.message);return;}
+  await loadBranches();
+  populateBranchUI();
+  renderBranchMgmt();
+}
+async function updateBranchField(id,field,value){
+  showSaving(true);
+  const update = {};
+  if(field==='ohd') update.ohd = Number(value)||0;
+  else if(field==='location') update.location = value;
+  const { error } = await _sb.from('branches').update(update).eq('id', id);
+  showSaving(false);
+  if(error){alert('Failed to update: '+error.message);return;}
+  await loadBranches();
+  populateBranchUI();
+}
 
 
 function uploadBrandPhoto(input){
@@ -1661,7 +1811,11 @@ function loadBrandPhoto(){
   }
 }
 
-window.onload=function(){
+window.onload=async function(){
+  // Load branches from Supabase (needed before any screen renders)
+  await loadBranches();
+  populateBranchUI();
+
   // Restore session on refresh
   const saved=sessionStorage.getItem(SESSION_KEY);
   if(saved){
@@ -1669,6 +1823,7 @@ window.onload=function(){
       const s=JSON.parse(saved);
       if(Date.now()-s.ts < INACTIVITY_MS){
         if(s.role==='owner'){
+          await loadStaffAccountsFromDB();
           showScreen('screen-owner');initOwnerDashboard();resetInactivityTimer();
         } else if(s.role==='staff'&&s.branch){
           currentBranch=s.branch;currentStaff=s.staff;
@@ -1687,6 +1842,7 @@ window.onload=function(){
   const prodBranch=document.getElementById('prod-branch-filter'); if(prodBranch) prodBranch.addEventListener('change',renderProductAnalysis);
   const histMonth=document.getElementById('hist-month'); if(histMonth) histMonth.addEventListener('change',renderStaffHistory);
 };
+
 </script>
 </body>
 </html>
