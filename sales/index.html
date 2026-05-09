@@ -830,12 +830,12 @@ function getBilaoQtyFromNoodles(){
 
 function updateBilaoSummary(){
   const qtyMap=getBilaoQtyFromNoodles();
-  let totalQty=0, totalPck=0, totalCost=0;
+  let totalQty=0, bilaoPck=0, bilaoCost=0;
   Object.entries(BILAO_SIZES).forEach(([size,info])=>{
     const qty=qtyMap[size]||0;
     const pckAmt=qty*info.pck;
     const costAmt=qty*info.cost;
-    totalQty+=qty; totalPck+=pckAmt; totalCost+=costAmt;
+    totalQty+=qty; bilaoPck+=pckAmt; bilaoCost+=costAmt;
     const cell=document.getElementById('bac-'+size);
     const qtyEl=document.getElementById('bac-qty-'+size);
     const detailEl=document.getElementById('bac-detail-'+size);
@@ -843,11 +843,20 @@ function updateBilaoSummary(){
     if(detailEl) detailEl.textContent=qty>0?`₱${pckAmt.toLocaleString('en-PH')} rev\n₱${costAmt.toLocaleString('en-PH')} cost`:'—';
     if(cell){ if(qty>0)cell.classList.add('has-qty'); else cell.classList.remove('has-qty'); }
   });
-  const paperCover=totalQty*4;
+  // Also include addon pck to match dashboard totals
+  const products={};
+  PRODUCTS.forEach(p=>{const el=document.getElementById('qty-'+p.id);if(el&&parseFloat(el.value)>0)products[p.id]=parseFloat(el.value);});
+  let addonPck=0;
+  PRODUCTS.filter(p=>p.cat==='addon'&&p.pck).forEach(p=>{addonPck+=(products[p.id]||0)*(p.pck||0);});
+  const totalPck=bilaoPck+addonPck;
+  // PHN total for food cost calculation
+  let phn=0;
+  PRODUCTS.filter(p=>p.cat==='noodle'||p.cat==='addon').forEach(p=>{phn+=(products[p.id]||0)*(p.phn||0);});
+  const foodCost=phn-totalPck;
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
   set('bac-total-qty',totalQty+' pcs');
   set('bac-pck-total','₱'+totalPck.toLocaleString('en-PH'));
-  set('bac-cost-total','₱'+(totalCost+paperCover).toLocaleString('en-PH'));
+  set('bac-cost-total','₱'+foodCost.toLocaleString('en-PH'));
 }
 
 // ── AUTOMATION CORE ──────────────────────────────────────
