@@ -98,5 +98,12 @@
       "top2": "PALABOK-S",
       "top3": "PICHI"
     }
+  ],
+  "staffAccounts": [
+    {
+      "username": "Jacob Fairview",
+      "email": "jacobrafael0214@gmail.com",
+      "branch": "Fairview"
+    }
   ]
 }
