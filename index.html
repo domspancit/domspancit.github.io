@@ -681,7 +681,18 @@ const VAT_RATE=0.12,OWNER_PASS='owner123';
 function getStaffAccounts(){
   try{ return JSON.parse(localStorage.getItem('doms_staff_accounts')||'[]'); }catch(e){return[];}
 }
-function saveStaffAccounts(list){ localStorage.setItem('doms_staff_accounts',JSON.stringify(list)); }
+async function saveStaffAccounts(list){
+  showSaving(true);
+  const d = await ghGet() || { entries: [] };
+  d.staffAccounts = list;
+  const ok = await ghSave(d);
+  showSaving(false);
+  if(ok) {
+    localStorage.setItem('doms_staff_accounts',JSON.stringify(list));
+    return true;
+  }
+  return false;
+}
 let currentBranch=null,currentStaff=null,activeRange='today',customFrom=null,customTo=null,activeDashBranch='all';
 
 // saveEntry and getEntries replaced by async GitHub versions above
