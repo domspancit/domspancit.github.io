@@ -4,148 +4,37 @@
  * ============================================================
  *
  * SETUP INSTRUCTIONS:
- * 1. Go to https://script.google.com and open your existing project.
+ * 1. Go to https://script.google.com and create a new project.
  * 2. Paste this entire file into the Code.gs editor.
- * 3. Deploy → Manage Deployments → Edit (pencil icon) → New Version → Deploy
- *    - It will ask for permissions to access Google Sheets. Click "Review Permissions" and "Allow".
- * 
- * Note: The first time it runs, it will create a new Google Sheet named
- * "Dom's Pancit POS Database" in your Google Drive automatically.
+ * 3. Go to Project Settings → Script Properties → Add:
+ *    - Property: GITHUB_PAT    Value: (your GitHub Personal Access Token)
+ * 4. Deploy → New Deployment → Web App
+ *    - Execute as: Me
+ *    - Who has access: Anyone
+ * 5. Copy the deployment URL → paste into index.html APPS_SCRIPT_URL
+ *
+ * NOTE: The GITHUB_PAT is NEVER exposed to the client.
  */
 
+// ── CONFIG ──────────────────────────────────────────────────
+const REPO_OWNER = "domspancit";
+const REPO_NAME  = "domspancit.github.io";
+const FILE_PATH  = "sales/data.json";
+const BRANCH     = "main";
+
 // Whitelisted emails → roles
+// Owners can manage staff from the dashboard.
+// Staff entries are stored in data.json under "staffAccounts"
 const OWNER_EMAILS = [
   "jm.domspancit@gmail.com",
   "cecilhicbansevilla@gmail.com"
 ];
 
-// ── DATABASE HELPERS ─────────────────────────────────────────
-
-function getDatabaseSheet() {
-  const props = PropertiesService.getScriptProperties();
-  let ssId = props.getProperty("SPREADSHEET_ID");
-  let ss;
-  
-  if (ssId) {
-    try {
-      ss = SpreadsheetApp.openById(ssId);
-    } catch(e) {
-      ss = null; // Maybe deleted
-    }
-  }
-  
-  if (!ss) {
-    // Create new spreadsheet
-    ss = SpreadsheetApp.create("Dom's Pancit POS Database");
-    props.setProperty("SPREADSHEET_ID", ss.getId());
-    
-    // Setup Entries Sheet
-    let entriesSheet = ss.getActiveSheet();
-    entriesSheet.setName("Entries");
-    entriesSheet.appendRow(["ID", "Date", "Branch", "Author", "Gross Sales", "Net PRF", "Full JSON Data"]);
-    entriesSheet.setFrozenRows(1);
-    
-    // Setup StaffAccounts Sheet
-    let staffSheet = ss.insertSheet("StaffAccounts");
-    staffSheet.appendRow(["Email", "Username", "Branch", "Full JSON Data"]);
-    staffSheet.setFrozenRows(1);
-  }
-  
-  return ss;
-}
-
-function readAllData() {
-  const ss = getDatabaseSheet();
-  const entriesSheet = ss.getSheetByName("Entries");
-  const staffSheet = ss.getSheetByName("StaffAccounts");
-  
-  let data = { entries: [], staffAccounts: [] };
-  
-  if (entriesSheet) {
-    const rows = entriesSheet.getDataRange().getValues();
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][6]) {
-        try { data.entries.push(JSON.parse(rows[i][6])); } catch(e) {}
-      }
-    }
-  }
-  
-  if (staffSheet) {
-    const rows = staffSheet.getDataRange().getValues();
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][3]) {
-        try { data.staffAccounts.push(JSON.parse(rows[i][3])); } catch(e) {}
-      }
-    }
-  }
-  
-  return data;
-}
-
-// Write the entire entries list back to the sheet
-function writeEntries(entries) {
-  const ss = getDatabaseSheet();
-  let sheet = ss.getSheetByName("Entries");
-  if (!sheet) sheet = ss.insertSheet("Entries");
-  
-  // Clear existing
-  sheet.clear();
-  sheet.appendRow(["ID", "Date", "Branch", "Author", "Gross Sales", "Net PRF", "Full JSON Data"]);
-  sheet.setFrozenRows(1);
-  
-  if (entries && entries.length > 0) {
-    const rows = entries.map(e => [
-      e.id || "",
-      e.date || "",
-      e.branch || e.store || "",
-      e.submittedBy || e.author || "",
-      e.gross || 0,
-      e.netPrf || 0,
-      JSON.stringify(e)
-    ]);
-    sheet.getRange(2, 1, rows.length, 7).setValues(rows);
-  }
-}
-
-// Append a single entry (more efficient than rewriting everything)
-function appendEntry(entry) {
-  const ss = getDatabaseSheet();
-  let sheet = ss.getSheetByName("Entries");
-  if (!sheet) sheet = ss.insertSheet("Entries");
-  
-  sheet.appendRow([
-    entry.id || "",
-    entry.date || "",
-    entry.branch || entry.store || "",
-    entry.submittedBy || entry.author || "",
-    entry.gross || 0,
-    entry.netPrf || 0,
-    JSON.stringify(entry)
-  ]);
-}
-
-// Write the staff list back to the sheet
-function writeStaffAccounts(staffAccounts) {
-  const ss = getDatabaseSheet();
-  let sheet = ss.getSheetByName("StaffAccounts");
-  if (!sheet) sheet = ss.insertSheet("StaffAccounts");
-  
-  sheet.clear();
-  sheet.appendRow(["Email", "Username", "Branch", "Full JSON Data"]);
-  sheet.setFrozenRows(1);
-  
-  if (staffAccounts && staffAccounts.length > 0) {
-    const rows = staffAccounts.map(s => [
-      s.email || "",
-      s.username || "",
-      s.branch || "",
-      JSON.stringify(s)
-    ]);
-    sheet.getRange(2, 1, rows.length, 4).setValues(rows);
-  }
-}
-
 // ── HELPERS ─────────────────────────────────────────────────
+
+function getGitHubPAT() {
+  return PropertiesService.getScriptProperties().getProperty("GITHUB_PAT");
+}
 
 /**
  * Verify a Google ID token and return the user info.
@@ -168,6 +57,7 @@ function verifyIdToken(idToken) {
 
 /**
  * Check if the user is authorized (owner or staff).
+ * Returns { authorized, role, branch, name, email, picture }
  */
 function checkAuthorization(email, data) {
   const emailLower = (email || "").toLowerCase();
@@ -177,7 +67,7 @@ function checkAuthorization(email, data) {
     return { authorized: true, role: "owner", branch: null, name: null };
   }
 
-  // Check if staff
+  // Check if staff (from data.json staffAccounts)
   const staffAccounts = data.staffAccounts || [];
   const staff = staffAccounts.find(s => (s.email || "").toLowerCase() === emailLower);
   if (staff) {
@@ -186,6 +76,52 @@ function checkAuthorization(email, data) {
 
   return { authorized: false };
 }
+
+// ── GITHUB API ──────────────────────────────────────────────
+
+function ghGet() {
+  const pat = getGitHubPAT();
+  const url = "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + FILE_PATH + "?ref=" + BRANCH;
+  const resp = UrlFetchApp.fetch(url, {
+    headers: {
+      "Authorization": "Bearer " + pat,
+      "Accept": "application/vnd.github.v3+json"
+    },
+    muteHttpExceptions: true
+  });
+  if (resp.getResponseCode() !== 200) {
+    return { data: { entries: [], staffAccounts: [] }, sha: null };
+  }
+  const json = JSON.parse(resp.getContentText());
+  const content = Utilities.newBlob(Utilities.base64Decode(json.content)).getDataAsString();
+  return { data: JSON.parse(content), sha: json.sha };
+}
+
+function ghSave(data, sha) {
+  const pat = getGitHubPAT();
+  const url = "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + FILE_PATH;
+  const content = Utilities.base64Encode(JSON.stringify(data, null, 2));
+  const payload = {
+    message: "POS update via Apps Script",
+    content: content,
+    branch: BRANCH
+  };
+  if (sha) payload.sha = sha;
+
+  const resp = UrlFetchApp.fetch(url, {
+    method: "put",
+    headers: {
+      "Authorization": "Bearer " + pat,
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  return resp.getResponseCode() === 200 || resp.getResponseCode() === 201;
+}
+
+// ── CORS RESPONSE ───────────────────────────────────────────
 
 function createJsonResponse(obj) {
   return ContentService
@@ -203,14 +139,19 @@ function doPost(e) {
 
     // Verify token
     const user = verifyIdToken(idToken);
-    if (!user) return createJsonResponse({ ok: false, error: "Invalid token" });
+    if (!user) {
+      return createJsonResponse({ ok: false, error: "Invalid token" });
+    }
 
-    // Read current data
-    const data = readAllData();
+    // Get current data for auth check
+    const gh = ghGet();
+    const data = gh.data || { entries: [], staffAccounts: [] };
 
     // Check authorization
     const auth = checkAuthorization(user.email, data);
-    if (!auth.authorized) return createJsonResponse({ ok: false, error: "Unauthorized email: " + user.email });
+    if (!auth.authorized) {
+      return createJsonResponse({ ok: false, error: "Unauthorized email: " + user.email });
+    }
 
     // ─── AUTHENTICATE ───────────────
     if (action === "authenticate") {
@@ -236,47 +177,66 @@ function doPost(e) {
     // ─── SAVE ENTRY ─────────────────
     if (action === "saveEntry") {
       const entry = body.entry;
-      if (!entry || !entry.date || !entry.branch) return createJsonResponse({ ok: false, error: "Missing entry data" });
+      if (!entry || !entry.date || !entry.branch) {
+        return createJsonResponse({ ok: false, error: "Missing entry data" });
+      }
 
       // Duplicate check: 1 entry per store per day
-      const existing = (data.entries || []).find(e => e.date === entry.date && e.branch === entry.branch);
+      const existing = (data.entries || []).find(
+        e => e.date === entry.date && e.branch === entry.branch
+      );
       if (existing) {
-        return createJsonResponse({ ok: false, error: "An entry for " + entry.branch + " on " + entry.date + " already exists." });
+        return createJsonResponse({
+          ok: false,
+          error: "An entry for " + entry.branch + " on " + entry.date + " already exists."
+        });
       }
 
       entry.submittedBy = user.email;
-      appendEntry(entry);
-      return createJsonResponse({ ok: true, error: null });
+      data.entries = data.entries || [];
+      data.entries.push(entry);
+
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved, error: saved ? null : "GitHub save failed" });
     }
 
     // ─── UPDATE ENTRY ───────────────
     if (action === "updateEntry") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Only owners can edit entries" });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Only owners can edit entries" });
+      }
       const { id, patch } = body;
       data.entries = (data.entries || []).map(e => e.id === id ? Object.assign({}, e, patch) : e);
-      writeEntries(data.entries);
-      return createJsonResponse({ ok: true, entries: data.entries });
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved, entries: data.entries });
     }
 
     // ─── DELETE ENTRY ───────────────
     if (action === "deleteEntry") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Only owners can delete entries" });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Only owners can delete entries" });
+      }
       const id = body.id;
       data.entries = (data.entries || []).filter(e => e.id !== id);
-      writeEntries(data.entries);
-      return createJsonResponse({ ok: true, entries: data.entries });
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved, entries: data.entries });
     }
 
     // ─── SAVE STAFF ACCOUNTS ────────
     if (action === "saveStaffAccounts") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Only owners can manage staff" });
-      writeStaffAccounts(body.staffAccounts || []);
-      return createJsonResponse({ ok: true });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Only owners can manage staff" });
+      }
+      data.staffAccounts = body.staffAccounts || [];
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
     }
 
     // ─── GET FULL DATA (owner only) ─
     if (action === "getFullData") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Owner access required" });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
       return createJsonResponse({ ok: true, data: data });
     }
 
@@ -288,8 +248,9 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // If no payload parameter, return API status
   if (!e.parameter || !e.parameter.payload) {
-    return createJsonResponse({ ok: true, message: "Dom's Pancit API is running securely via Google Sheets." });
+    return createJsonResponse({ ok: true, message: "Dom's Pancit API is running." });
   }
 
   // Parse payload sent via URL parameter (workaround for POST→GET redirect)
@@ -300,14 +261,19 @@ function doGet(e) {
 
     // Verify token
     const user = verifyIdToken(idToken);
-    if (!user) return createJsonResponse({ ok: false, error: "Invalid token" });
+    if (!user) {
+      return createJsonResponse({ ok: false, error: "Invalid token" });
+    }
 
-    // Read current data
-    const data = readAllData();
+    // Get current data for auth check
+    const gh = ghGet();
+    const data = gh.data || { entries: [], staffAccounts: [] };
 
     // Check authorization
     const auth = checkAuthorization(user.email, data);
-    if (!auth.authorized) return createJsonResponse({ ok: false, error: "Unauthorized email: " + user.email });
+    if (!auth.authorized) {
+      return createJsonResponse({ ok: false, error: "Unauthorized email: " + user.email });
+    }
 
     // ─── AUTHENTICATE ───────────────
     if (action === "authenticate") {
@@ -333,43 +299,48 @@ function doGet(e) {
       if (!entry) return createJsonResponse({ ok: false, error: "No entry data" });
 
       entry.author = user.email;
-      
-      const branchName = entry.branch || entry.store;
       const existingIdx = (data.entries || []).findIndex(
-        e => (e.branch === branchName || e.store === branchName) && e.date === entry.date
+        e => e.store === entry.store && e.date === entry.date
       );
-      
       if (existingIdx >= 0) {
         data.entries[existingIdx] = entry;
-        writeEntries(data.entries);
       } else {
-        appendEntry(entry);
+        data.entries = data.entries || [];
+        data.entries.push(entry);
       }
-      return createJsonResponse({ ok: true });
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
     }
 
     // ─── DELETE ENTRY ───────────────
     if (action === "deleteEntry") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Owner access required" });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
       const store = body.store;
       const date = body.date;
       data.entries = (data.entries || []).filter(
-        e => !((e.branch === store || e.store === store) && e.date === date)
+        e => !(e.store === store && e.date === date)
       );
-      writeEntries(data.entries);
-      return createJsonResponse({ ok: true });
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
     }
 
     // ─── SAVE STAFF ACCOUNTS ────────
     if (action === "saveStaffAccounts") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Owner access required" });
-      writeStaffAccounts(body.staffAccounts || []);
-      return createJsonResponse({ ok: true });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
+      data.staffAccounts = body.staffAccounts || [];
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
     }
 
     // ─── GET FULL DATA (owner only) ─
     if (action === "getFullData") {
-      if (auth.role !== "owner") return createJsonResponse({ ok: false, error: "Owner access required" });
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
       return createJsonResponse({ ok: true, data: data });
     }
 
