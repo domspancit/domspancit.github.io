@@ -333,10 +333,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="bilao-auto-cell" id="bac-L"><div class="bac-size">Bilao L</div><div class="bac-qty" id="bac-qty-L">0 pcs</div><div class="bac-detail" id="bac-detail-L">—</div></div>
           <div class="bilao-auto-cell" id="bac-XL"><div class="bac-size">Bilao XL</div><div class="bac-qty" id="bac-qty-XL">0 pcs</div><div class="bac-detail" id="bac-detail-XL">—</div></div>
         </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:13px">
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:center;font-size:13px">
           <span>Total Bilaos: <strong id="bac-total-qty">0 pcs</strong></span>
-          <span>PCK Revenue: <strong id="bac-pck-total" style="color:var(--green-text)">₱0</strong></span>
-          <span>Food Cost: <strong id="bac-cost-total" style="color:var(--red-text)">₱0</strong></span>
         </div>
       </div>
 
@@ -1489,6 +1487,7 @@ async function renderReports(){
       </div>
       ${e.top1||e.top2||e.top3?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:12px"><div style="color:var(--text-3);font-weight:600;margin-bottom:4px">TOP SELLERS</div><div style="display:flex;gap:6px;flex-wrap:wrap">${[e.top1,e.top2,e.top3].filter(Boolean).map((t,i)=>`<span class="badge badge-orange">${['🥇','🥈','🥉'][i]} ${t}</span>`).join('')}</div></div>`:''}
       ${e.expenses?.length||e.miscExpenses?.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:12px"><div style="color:var(--text-3);font-weight:600;margin-bottom:4px">EXPENSES (Total: ${peso((e.totalExpenses||0)+(e.totalMisc||0))})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${[...(e.expenses||[]),...(e.miscExpenses||[])].map(x=>`<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-weight:600">${x.desc}: ${peso(x.amt)}</span>`).join('')}</div></div>`:''}
+      ${e.products&&Object.keys(e.products).length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;font-size:12px"><div style="color:var(--text-3);font-weight:600;margin-bottom:4px">📦 ORDERS</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px">${PRODUCTS.filter(p=>e.products[p.id]>0).map(p=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:11px">${p.name}</span><span style="font-weight:800;color:var(--orange-dark)">${e.products[p.id]}</span></div>`).join('')}</div></div>`:''}
     </div>`;
   }).join('');
 
