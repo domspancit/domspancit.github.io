@@ -580,11 +580,11 @@ async function apiCall(action, extra = {}) {
   if (!googleIdToken) { alert('Session expired. Please sign in again.'); logout(); return null; }
   try {
     showSaving(true);
-    const r = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, idToken: googleIdToken, ...extra })
-    });
+    const payload = JSON.stringify({ action, idToken: googleIdToken, ...extra });
+    // Apps Script redirects POST→GET (302), losing the body.
+    // Workaround: send as GET with payload in URL parameter.
+    const url = APPS_SCRIPT_URL + '?payload=' + encodeURIComponent(payload);
+    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
     const json = await r.json();
     showSaving(false);
     if (!json.ok) { console.error('API error:', json.error); }

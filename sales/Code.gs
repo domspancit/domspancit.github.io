@@ -248,5 +248,105 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  return createJsonResponse({ ok: true, message: "Dom's Pancit API is running." });
+  // If no payload parameter, return API status
+  if (!e.parameter || !e.parameter.payload) {
+    return createJsonResponse({ ok: true, message: "Dom's Pancit API is running." });
+  }
+
+  // Parse payload sent via URL parameter (workaround for POST→GET redirect)
+  try {
+    const body = JSON.parse(e.parameter.payload);
+    const action = body.action;
+    const idToken = body.idToken;
+
+    // Verify token
+    const user = verifyIdToken(idToken);
+    if (!user) {
+      return createJsonResponse({ ok: false, error: "Invalid token" });
+    }
+
+    // Get current data for auth check
+    const gh = ghGet();
+    const data = gh.data || { entries: [], staffAccounts: [] };
+
+    // Check authorization
+    const auth = checkAuthorization(user.email, data);
+    if (!auth.authorized) {
+      return createJsonResponse({ ok: false, error: "Unauthorized email: " + user.email });
+    }
+
+    // ─── AUTHENTICATE ───────────────
+    if (action === "authenticate") {
+      return createJsonResponse({
+        ok: true,
+        role: auth.role,
+        branch: auth.branch || null,
+        name: auth.name || user.name,
+        email: user.email,
+        picture: user.picture,
+        staff: auth.role === "owner" ? (data.staffAccounts || []) : null
+      });
+    }
+
+    // ─── GET ENTRIES ────────────────
+    if (action === "getEntries") {
+      return createJsonResponse({ ok: true, entries: data.entries || [] });
+    }
+
+    // ─── SAVE ENTRY ─────────────────
+    if (action === "saveEntry") {
+      const entry = body.entry;
+      if (!entry) return createJsonResponse({ ok: false, error: "No entry data" });
+
+      entry.author = user.email;
+      const existingIdx = (data.entries || []).findIndex(
+        e => e.store === entry.store && e.date === entry.date
+      );
+      if (existingIdx >= 0) {
+        data.entries[existingIdx] = entry;
+      } else {
+        data.entries = data.entries || [];
+        data.entries.push(entry);
+      }
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
+    }
+
+    // ─── DELETE ENTRY ───────────────
+    if (action === "deleteEntry") {
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
+      const store = body.store;
+      const date = body.date;
+      data.entries = (data.entries || []).filter(
+        e => !(e.store === store && e.date === date)
+      );
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
+    }
+
+    // ─── SAVE STAFF ACCOUNTS ────────
+    if (action === "saveStaffAccounts") {
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
+      data.staffAccounts = body.staffAccounts || [];
+      const saved = ghSave(data, gh.sha);
+      return createJsonResponse({ ok: saved });
+    }
+
+    // ─── GET FULL DATA (owner only) ─
+    if (action === "getFullData") {
+      if (auth.role !== "owner") {
+        return createJsonResponse({ ok: false, error: "Owner access required" });
+      }
+      return createJsonResponse({ ok: true, data: data });
+    }
+
+    return createJsonResponse({ ok: false, error: "Unknown action: " + action });
+
+  } catch (err) {
+    return createJsonResponse({ ok: false, error: err.toString() });
+  }
 }
