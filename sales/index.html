@@ -2071,6 +2071,7 @@
         set('lt-phn', p(t.phn));
         set('lt-gross-prf', p(t.grossPrf));
         set('lt-ohd', p(BRANCHES.find(b => b.name === currentBranch)?.ohd || 0));
+        set('lt-lpg', p(t.lpg));
         set('lt-expenses', p(t.expTotal));
         set('lt-prf-raw', p(t.prf));
         set('lt-prf', p(t.netPrf));
@@ -2493,7 +2494,7 @@
       const expTotal = totalExpenses + totalMisc;
       const cashSum = expTotal + cashHand;
       const checkBalance = vatSalesInput - cashSum;
-      const lpg = (gross / 15000) * 800;
+      const lpg = (gross / 15000) * getLpgRate(branchName);
       const ohd = BRANCHES.find(b => b.name === branchName)?.ohd || 0;
       const grossPrf = gross - phn;
       // PRF = GrossPrf - LPG - OHD - Misc only
