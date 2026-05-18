@@ -3100,25 +3100,30 @@
       const password = document.getElementById('staff-login-pass')?.value || '';
       const err = document.getElementById('login-err');
       if (!username || !password) { if (err) { err.textContent = 'Please enter username and password.'; err.style.display = 'block'; } return; }
-      if (err) { err.textContent = 'Verifying...'; err.style.display = 'block'; }
+      if (err) { err.textContent = 'Verifying…'; err.style.display = 'block'; }
       try {
-        await loadBranches(); populateBranchUI();
         const hash = await sha256(password);
-        const accounts = await loadStaffAccountsFromDB();
-        const match = accounts.find(a => (a.username || '').toLowerCase() === username && a.password_hash === hash);
-        if (!match) {
+        // Direct targeted query — no need to load all accounts; works with anon RLS
+        const { data, error } = await _sb.from('staff_accounts')
+          .select('username, branch_name, password_hash')
+          .eq('username', username)
+          .eq('password_hash', hash)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) {
           if (err) { err.textContent = 'Invalid username or password.'; err.style.display = 'block'; }
           return;
         }
         if (err) err.style.display = 'none';
-        currentBranch = match.branch; currentStaff = match.username;
-        saveSession('staff', match.branch, match.username);
+        await loadBranches(); populateBranchUI();
+        currentBranch = data.branch_name; currentStaff = data.username;
+        saveSession('staff', data.branch_name, data.username);
         resetInactivityTimer();
         showScreen('screen-staff');
         loadStaffSales();
       } catch (e) {
         console.error('loginStaff error:', e);
-        if (err) { err.textContent = 'Login error. Please try again.'; err.style.display = 'block'; }
+        if (err) { err.textContent = 'Login error: ' + (e.message || 'Please try again.'); err.style.display = 'block'; }
       }
     }
 
@@ -3293,11 +3298,12 @@
       lpgRateOverrides[branchName] = Number(val) || 800;
       try {
         showSaving(true);
-        await _sb.from('app_config').upsert(
-          { key: 'branch_lpg_rates', value: lpgRateOverrides, updated_at: new Date().toISOString(), updated_by: googleUserInfo?.email || '' },
+        const { error } = await _sb.from('app_config').upsert(
+          { key: 'branch_lpg_rates', value: lpgRateOverrides },
           { onConflict: 'key' }
         );
         showSaving(false);
+        if (error) alert('LPG save failed: ' + error.message);
       } catch (e) { showSaving(false); alert('LPG save failed: ' + e.message); }
     }
 
