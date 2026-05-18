@@ -2711,22 +2711,79 @@
       <div style="grid-column:span 2"><span style="${balClass.replace('color:', 'color:').replace(';', '')}font-weight:700">Check &amp; Balance</span><div style="font-weight:800;font-size:16px;${balClass}">${totCashBalance >= 0 ? '+' : ''}${peso(totCashBalance)} ${Math.abs(totCashBalance) < 1 ? '✓ Balanced' : '⚠ Variance'}</div></div>
     </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden;margin-bottom:4px">
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">
     <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;font-weight:800">📋 Daily Breakdown Table</div>
-      <button onclick="exportBreakdownCSV()" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
+      <div style="font-size:13px;font-weight:800">📋 P&amp;L Breakdown</div>
+      <button onclick="exportBreakdownCSV('pnl')" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
     </div>
     <div style="overflow-x:auto">
-      <table class="data-table" style="width:100%;min-width:800px;font-size:11px">
+      <table class="data-table" style="width:100%;min-width:600px;font-size:11px">
         <thead><tr>
-          <th>Date</th><th>Branch</th><th>VAT Sales</th><th>Gross</th><th>PHN</th><th>Gross PRF</th><th>LPG</th><th>OHD</th><th>PRF</th><th>TTS</th><th>Net PRF</th><th>Expenses</th><th>Guests</th><th>Avg Chk</th><th>C&amp;B</th>
+          <th>Date</th><th>Branch</th><th>Gross Sales</th><th>PHN</th><th>PRF</th><th>Net PRF</th><th>Guests</th><th>Avg Check</th><th>Remarks</th>
         </tr></thead>
-        <tbody id="breakdown-tbody">
-          ${entries.map(e => { const cb=e.checkBalance||0; const cbCol=Math.abs(cb)<1?'var(--green-dark)':'var(--red-text)'; const ac=e.avgCheck>0?peso(e.avgCheck):(e.gross>0&&e.guestCount>0?peso(e.gross/e.guestCount):'—'); return `<tr><td>${e.date}</td><td>${e.branch}</td><td style="text-align:right">${peso(e.totalVatSales||0)}</td><td style="text-align:right">${peso(e.gross||0)}</td><td style="text-align:right">${peso(e.phn||0)}</td><td style="text-align:right">${peso(e.grossPrf||0)}</td><td style="text-align:right">${peso(e.lpg||0)}</td><td style="text-align:right">${peso(e.ohd||0)}</td><td style="text-align:right">${peso(e.prf||0)}</td><td style="text-align:right">${peso(e.tts||0)}</td><td style="text-align:right;font-weight:800">${peso(e.netPrf||0)}</td><td style="text-align:right;color:var(--red-text)">${peso((e.totalExpenses||0)+(e.totalMisc||0))}</td><td style="text-align:center">${e.guestCount||0}</td><td style="text-align:right">${ac}</td><td style="text-align:right;font-weight:700;color:${cbCol}">${cb>=0?'+':''}${peso(cb)}</td></tr>`; }).join('')}
+        <tbody id="breakdown-pnl">
+          ${entries.map(e => {
+            const ac = e.avgCheck > 0 ? peso(e.avgCheck) : (e.gross > 0 && e.guestCount > 0 ? peso(e.gross / e.guestCount) : '—');
+            const remarks = [e.top1, e.top2, e.top3].filter(Boolean).join(', ') || '—';
+            return `<tr>
+              <td>${e.date}</td><td>${e.branch}</td>
+              <td style="text-align:right;font-weight:700">${peso(e.gross||0)}</td>
+              <td style="text-align:right;color:var(--orange-dark)">${peso(e.phn||0)}</td>
+              <td style="text-align:right">${peso(e.prf||0)}</td>
+              <td style="text-align:right;font-weight:800;color:var(--green-dark)">${peso(e.netPrf||0)}</td>
+              <td style="text-align:center">${e.guestCount||0}</td>
+              <td style="text-align:right">${ac}</td>
+              <td style="font-size:10px;color:var(--text-2)">${remarks}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
         <tfoot><tr style="font-weight:800;background:var(--yellow)">
           <td colspan="2">TOTAL (${entries.length} days)</td>
-          <td style="text-align:right">${peso(totSales)}</td><td style="text-align:right">${peso(totGross)}</td><td style="text-align:right">${peso(totPhn)}</td><td style="text-align:right">${peso(totGrossPrf)}</td><td style="text-align:right">${peso(totLpg)}</td><td style="text-align:right">${peso(totOhd)}</td><td style="text-align:right">${peso(totPrf)}</td><td style="text-align:right">${peso(totTts)}</td><td style="text-align:right;color:var(--green-dark)">${peso(totNetPrf)}</td><td style="text-align:right;color:var(--red-text)">${peso(totExp)}</td><td style="text-align:center">${totGuests}</td><td style="text-align:right">${avgCheck>0?peso(avgCheck):'—'}</td><td>—</td>
+          <td style="text-align:right">${peso(totGross)}</td>
+          <td style="text-align:right;color:var(--orange-dark)">${peso(totPhn)}</td>
+          <td style="text-align:right">${peso(totPrf)}</td>
+          <td style="text-align:right;color:var(--green-dark)">${peso(totNetPrf)}</td>
+          <td style="text-align:center">${totGuests}</td>
+          <td style="text-align:right">${avgCheck > 0 ? peso(avgCheck) : '—'}</td>
+          <td>—</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:4px">
+    <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:800">🧾 VAT &amp; Cost Detail</div>
+      <button onclick="exportBreakdownCSV('vat')" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table" style="width:100%;min-width:600px;font-size:11px">
+        <thead><tr>
+          <th>Date</th><th>Branch</th><th>VAT Sales</th><th>Tax</th><th>Tax Walk-in</th><th>Grab Tax</th><th>Food Cost</th><th>Paper Cost</th>
+        </tr></thead>
+        <tbody id="breakdown-vat">
+          ${entries.map(e => {
+            const tax = (e.vat > 0) ? e.vat : (e.totalVatSales||0) * (0.12/1.12);
+            const walkinTax = (e.vatSalesInput||0) * (0.12/1.12);
+            const grabTax = ((e.grabfood||0) + (e.foodpanda||0)) * (0.12/1.12);
+            return `<tr>
+              <td>${e.date}</td><td>${e.branch}</td>
+              <td style="text-align:right">${peso(e.totalVatSales||0)}</td>
+              <td style="text-align:right;color:var(--red-text)">${peso(tax)}</td>
+              <td style="text-align:right">${peso(walkinTax)}</td>
+              <td style="text-align:right">${peso(grabTax)}</td>
+              <td style="text-align:right">${peso(e.foodCost||0)}</td>
+              <td style="text-align:right">${peso(e.pck||e.paperCost||0)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr style="font-weight:800;background:var(--yellow)">
+          <td colspan="2">TOTAL (${entries.length} days)</td>
+          <td style="text-align:right">${peso(totSales)}</td>
+          <td style="text-align:right;color:var(--red-text)">${peso(entries.reduce((s,e) => s + ((e.vat > 0 ? e.vat : (e.totalVatSales||0)*(0.12/1.12))), 0))}</td>
+          <td style="text-align:right">${peso(entries.reduce((s,e) => s + ((e.vatSalesInput||0)*(0.12/1.12)), 0))}</td>
+          <td style="text-align:right">${peso(entries.reduce((s,e) => s + (((e.grabfood||0)+(e.foodpanda||0))*(0.12/1.12)), 0))}</td>
+          <td style="text-align:right">${peso(totFoodCost)}</td>
+          <td style="text-align:right">${peso(tot('pck'))}</td>
         </tr></tfoot>
       </table>
     </div>
@@ -2991,10 +3048,14 @@
     }
 
     // ── CSV EXPORT FOR BREAKDOWN TABLE ──
-    function exportBreakdownCSV() {
-      const tbody = document.getElementById('breakdown-tbody');
+    function exportBreakdownCSV(type) {
+      const isPnl = type === 'pnl';
+      const tbodyId = isPnl ? 'breakdown-pnl' : 'breakdown-vat';
+      const tbody = document.getElementById(tbodyId);
       if (!tbody) return;
-      const headers = ['Date','Branch','VAT Sales','Gross','PHN','Gross PRF','LPG','OHD','PRF','TTS','Net PRF','Expenses','Guests','Avg Check','C&B'];
+      const headers = isPnl
+        ? ['Date','Branch','Gross Sales','PHN','PRF','Net PRF','Guests','Avg Check','Remarks']
+        : ['Date','Branch','VAT Sales','Tax','Tax Walk-in','Grab Tax','Food Cost','Paper Cost'];
       const rows = Array.from(tbody.querySelectorAll('tr')).map(tr =>
         Array.from(tr.querySelectorAll('td')).map(td => '"' + td.textContent.replace(/₱|,/g,'').trim() + '"').join(',')
       );
@@ -3002,7 +3063,8 @@
       const blob = new Blob([csv], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'breakdown_' + (document.getElementById('report-month')?.value || 'all') + '.csv';
+      const month = document.getElementById('report-month')?.value || 'all';
+      a.download = (isPnl ? 'pnl_' : 'vat_cost_') + month + '.csv';
       a.click();
     }
 
