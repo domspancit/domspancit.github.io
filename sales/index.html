@@ -1913,7 +1913,8 @@
       document.getElementById('screen-splash').style.display = 'none';
       document.getElementById('screen-login').style.display = 'block';
       document.getElementById('login-overlay').classList.add('show');
-      // Don't auto-init Google — only init when owner tab is selected
+      // Suppress Google one-tap auto-prompt — only show when owner tab is clicked
+      try { if (typeof google !== 'undefined' && google.accounts) { google.accounts.id.disableAutoSelect(); google.accounts.id.cancel(); } } catch (_) {}
     }
 
     // ── GOOGLE SIGN-IN ───────────────────────────────────────
@@ -2318,8 +2319,8 @@
   </div>`).join('');
     }
 
-    function ownerTab(tab, el) {
-      if (tab === 'settings') { renderStaffAccounts(); renderBranchMgmt(); loadBrandPhoto(); renderPhnRates(); }
+    async function ownerTab(tab, el) {
+      if (tab === 'settings') { renderStaffAccounts(); await loadLpgRates(); renderBranchMgmt(); loadBrandPhoto(); renderPhnRates(); }
       ['dashboard', 'reports', 'products', 'settings', 'sales'].forEach(t => { const el = document.getElementById('owner-' + t); if (el) el.style.display = t === tab ? 'block' : 'none'; });
       document.querySelectorAll('#screen-owner .tab').forEach(t => t.classList.remove('active')); el.classList.add('active');
       if (tab === 'reports') renderReports();
@@ -3144,7 +3145,7 @@
       if (!branch) { err.textContent = 'Please select a branch.'; err.style.display = 'block'; return; }
       showSaving(true);
       const password_hash = await sha256(rawPass);
-      const { error } = await _sb.from('staff_accounts').insert({ username: name.toLowerCase(), password_hash, branch_name: branch });
+      const { error } = await _sb.from('staff_accounts').insert({ username: name.toLowerCase(), email: name.toLowerCase() + '@staff.doms', password_hash, branch_name: branch });
       showSaving(false);
       if (error) {
         if (error.code === '23505') err.textContent = 'This username is already taken.';
