@@ -2907,9 +2907,11 @@
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">OHD</div><div style="font-weight:800">${peso(e.ohd || 0)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">GROSS PRF</div><div style="font-weight:800">${peso(e.grossPrf || 0)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">LPG</div><div style="font-weight:800">${peso(e.lpg || 0)}</div></div>
+        <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">VAT (12%)</div><div style="font-weight:800">${peso((e.totalVatSales||0) * 0.12)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">PRF</div><div style="font-weight:800">${peso(e.prf || 0)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">TTS (10%)</div><div style="font-weight:800">${peso(e.tts || 0)}</div></div>
         <div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">NET PRF</div><div style="font-weight:900;font-size:16px;color:var(--green-dark)">${peso(e.netPrf || 0)}</div></div>
+        ${e.remittance > 0 ? `<div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">💰 Owner Exp</div><div style="font-weight:800">${peso(e.remittance)}</div></div><div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">New OHD</div><div style="font-weight:800">${peso((e.ohd||0)-(e.remittance||0))}</div></div>` : ''}
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">FOOD COST</div><div style="font-weight:700">${peso(e.foodCost || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.paperCost || e.pck || 0)}</div></div>
         <div style="background:${Math.abs(cb) < 1 ? 'var(--green-light)' : 'var(--red-light)'};border-radius:8px;padding:7px 9px;grid-column:span 2">
@@ -2938,6 +2940,10 @@
       <div><span style="color:var(--text-2)">PRF</span><div style="font-weight:700">${peso(totPrf)}</div></div>
       <div><span style="color:var(--orange-text);font-weight:700">TTS (10%)</span><div style="font-weight:800;color:var(--orange-dark)">${peso(totTts)}</div></div>
       <div style="grid-column:span 2"><span style="color:var(--green-text);font-weight:700">NET PRF</span><div style="font-weight:900;font-size:20px;color:var(--green-dark)">${peso(totNetPrf)}</div></div>
+      <div><span style="color:var(--text-2)">VAT (12%)</span><div style="font-weight:700;color:var(--orange-dark)">${peso(totSales * VAT_RATE)}</div></div>
+      <div><span style="color:var(--orange-dark);font-weight:700">💰 Owner Expenses</span><div style="font-weight:800;color:var(--orange-dark)">${peso(tot('remittance'))}</div></div>
+      <div><span style="color:var(--text-2)">New OHD</span><div style="font-weight:700">${peso(totOhd - tot('remittance'))}</div></div>
+      <div><span style="color:var(--green-text);font-weight:700">💰 After Owner Exp</span><div style="font-weight:800;color:var(--green-dark)">${peso(tot('afterRemittance'))}</div></div>
       <div><span style="color:var(--text-2)">Expenses</span><div style="font-weight:700;color:var(--red-text)">${peso(totExp)}</div></div>
       <div><span style="color:var(--text-2)">Food Cost (PHN−PCK)</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
       <div><span style="color:var(--text-2)">Paper Cost (PCK)</span><div style="font-weight:700">${peso(tot('pck'))}</div></div>
