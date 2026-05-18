@@ -1633,6 +1633,17 @@
           </div>
         </div>
 
+        <!-- Puhunan (PHN) Rates Management -->
+        <div class="section-label" style="margin-top:20px">💰 Puhunan (PHN) Rates</div>
+        <div class="card" id="phn-rates-card">
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">Edit per-unit cost for all products. Saved to database — applies to new entries immediately.</div>
+          <div id="phn-rates-table"><div style="color:var(--text-3);font-size:13px;padding:8px 0">Open Settings to load rates.</div></div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-primary" onclick="savePhnRatesFromUI()" style="flex:1">💾 Save PHN Rates</button>
+            <button class="btn" onclick="renderPhnRates()" style="flex:1">↺ Refresh</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1731,22 +1742,52 @@
     // ── BRANCHES (loaded dynamically from Supabase) ──────────
     let BRANCHES = [];
     const PRODUCTS = [
-      { id: 'BG-S', cat: 'noodle', name: 'BG-S', phn: 156 }, { id: 'BG-M', cat: 'noodle', name: 'BG-M', phn: 284 }, { id: 'BG-L', cat: 'noodle', name: 'BG-L', phn: 414 }, { id: 'BG-XL', cat: 'noodle', name: 'BG-XL', phn: 549 },
-      { id: 'MIKI-S', cat: 'noodle', name: 'MIKI-S', phn: 164 }, { id: 'MIKI-M', cat: 'noodle', name: 'MIKI-M', phn: 300 }, { id: 'MIKI-L', cat: 'noodle', name: 'MIKI-L', phn: 438 }, { id: 'MIKI-XL', cat: 'noodle', name: 'MIKI-XL', phn: 581 },
-      { id: 'PALABOK-S', cat: 'noodle', name: 'PALABOK-S', phn: 166 }, { id: 'PALABOK-M', cat: 'noodle', name: 'PALABOK-M', phn: 305 }, { id: 'PALABOK-L', cat: 'noodle', name: 'PALABOK-L', phn: 445 }, { id: 'PALABOK-XL', cat: 'noodle', name: 'PALABOK-XL', phn: 581 },
-      { id: 'PC-M', cat: 'noodle', name: 'PC-M', phn: 260 }, { id: 'PC-L', cat: 'noodle', name: 'PC-L', phn: 488 },
-      { id: 'SPAG-S', cat: 'noodle', name: 'SPAG-S', phn: 190 }, { id: 'SPAG-M', cat: 'noodle', name: 'SPAG-M', phn: 344 }, { id: 'SPAG-L', cat: 'noodle', name: 'SPAG-L', phn: 534 }, { id: 'SPAG-XL', cat: 'noodle', name: 'SPAG-XL', phn: 688 },
-      { id: 'MAC-S', cat: 'noodle', name: 'MAC-S', phn: 190 }, { id: 'MAC-M', cat: 'noodle', name: 'MAC-M', phn: 344 }, { id: 'MAC-L', cat: 'noodle', name: 'MAC-L', phn: 534 }, { id: 'MAC-XL', cat: 'noodle', name: 'MAC-XL', phn: 688 },
-      { id: 'LUGLOG-S', cat: 'noodle', name: 'LUGLOG-S', phn: 210 }, { id: 'LUGLOG-M', cat: 'noodle', name: 'LUGLOG-M', phn: 365 }, { id: 'LUGLOG-L', cat: 'noodle', name: 'LUGLOG-L', phn: 521 }, { id: 'LUGLOG-XL', cat: 'noodle', name: 'LUGLOG-XL', phn: 697 },
-      { id: 'P SISIG-S', cat: 'noodle', name: 'P SISIG-S', phn: 218 }, { id: 'P SISIG-M', cat: 'noodle', name: 'P SISIG-M', phn: 408 }, { id: 'P SISIG-L', cat: 'noodle', name: 'P SISIG-L', phn: 600 }, { id: 'P SISIG-XL', cat: 'noodle', name: 'P SISIG-XL', phn: 797 },
-      { id: 'JAPCHAE-S', cat: 'noodle', name: 'JAPCHAE-S', phn: 300 }, { id: 'JAPCHAE-M', cat: 'noodle', name: 'JAPCHAE-M', phn: 600 },
+      { id: 'BG-S', cat: 'noodle', name: 'BG-S', phn: 172 }, { id: 'BG-M', cat: 'noodle', name: 'BG-M', phn: 313 }, { id: 'BG-L', cat: 'noodle', name: 'BG-L', phn: 456 }, { id: 'BG-XL', cat: 'noodle', name: 'BG-XL', phn: 604 },
+      { id: 'MIKI-S', cat: 'noodle', name: 'MIKI-S', phn: 181 }, { id: 'MIKI-M', cat: 'noodle', name: 'MIKI-M', phn: 330 }, { id: 'MIKI-L', cat: 'noodle', name: 'MIKI-L', phn: 482 }, { id: 'MIKI-XL', cat: 'noodle', name: 'MIKI-XL', phn: 640 },
+      { id: 'PALABOK-S', cat: 'noodle', name: 'PALABOK-S', phn: 183 }, { id: 'PALABOK-M', cat: 'noodle', name: 'PALABOK-M', phn: 336 }, { id: 'PALABOK-L', cat: 'noodle', name: 'PALABOK-L', phn: 490 }, { id: 'PALABOK-XL', cat: 'noodle', name: 'PALABOK-XL', phn: 666 },
+      { id: 'PC-M', cat: 'noodle', name: 'PC-M', phn: 286 }, { id: 'PC-L', cat: 'noodle', name: 'PC-L', phn: 537 },
+      { id: 'SPAG-S', cat: 'noodle', name: 'SPAG-S', phn: 209 }, { id: 'SPAG-M', cat: 'noodle', name: 'SPAG-M', phn: 379 }, { id: 'SPAG-L', cat: 'noodle', name: 'SPAG-L', phn: 588 }, { id: 'SPAG-XL', cat: 'noodle', name: 'SPAG-XL', phn: 757 },
+      { id: 'MAC-S', cat: 'noodle', name: 'MAC-S', phn: 209 }, { id: 'MAC-M', cat: 'noodle', name: 'MAC-M', phn: 379 }, { id: 'MAC-L', cat: 'noodle', name: 'MAC-L', phn: 588 }, { id: 'MAC-XL', cat: 'noodle', name: 'MAC-XL', phn: 757 },
+      { id: 'LUGLOG-S', cat: 'noodle', name: 'LUGLOG-S', phn: 231 }, { id: 'LUGLOG-M', cat: 'noodle', name: 'LUGLOG-M', phn: 402 }, { id: 'LUGLOG-L', cat: 'noodle', name: 'LUGLOG-L', phn: 574 }, { id: 'LUGLOG-XL', cat: 'noodle', name: 'LUGLOG-XL', phn: 767 },
+      { id: 'P SISIG-S', cat: 'noodle', name: 'P SISIG-S', phn: 240 }, { id: 'P SISIG-M', cat: 'noodle', name: 'P SISIG-M', phn: 449 }, { id: 'P SISIG-L', cat: 'noodle', name: 'P SISIG-L', phn: 660 }, { id: 'P SISIG-XL', cat: 'noodle', name: 'P SISIG-XL', phn: 877 },
+      { id: 'JAPCHAE-S', cat: 'noodle', name: 'JAPCHAE-S', phn: 330 }, { id: 'JAPCHAE-M', cat: 'noodle', name: 'JAPCHAE-M', phn: 660 },
       { id: 'BILAO-S', cat: 'bilao', name: 'Bilao S', pck: 40, cost: 25 }, { id: 'BILAO-M', cat: 'bilao', name: 'Bilao M', pck: 46, cost: 29 }, { id: 'BILAO-L', cat: 'bilao', name: 'Bilao L', pck: 53, cost: 35 }, { id: 'BILAO-XL', cat: 'bilao', name: 'Bilao XL', pck: 63, cost: 40 },
-      { id: 'FRIED CX', cat: 'addon', name: 'Fried CX', phn: 220, pck: 20 }, { id: 'LUMPIA-PORK', cat: 'addon', name: 'Lumpia Pork', phn: 145, pck: 20 }, { id: 'LUMPIA-CHICKEN', cat: 'addon', name: 'Lumpia Chicken', phn: 145, pck: 20 },
-      { id: 'LUMPIA-FISH', cat: 'addon', name: 'Lumpia Fish', phn: 145, pck: 20 }, { id: 'LUMPIA-SPICY', cat: 'addon', name: 'Lumpia Spicy', phn: 145, pck: 20 }, { id: 'CORDON', cat: 'addon', name: 'Cordon', phn: 160, pck: 20 },
-      { id: 'PORKS SISIG', cat: 'addon', name: 'Porks Sisig', phn: 120, pck: 10 }, { id: 'PUTO', cat: 'addon', name: 'Puto', phn: 30, pck: 10 }, { id: 'PICHI', cat: 'addon', name: 'Pichi', phn: 50, pck: 10 },
-      { id: 'LECHE FLAN', cat: 'addon', name: 'Leche Flan', phn: 60, pck: 10 }, { id: 'GULAMAN', cat: 'addon', name: 'Gulaman', phn: 40, pck: 25 },
-      { id: 'WATER', cat: 'addon', name: 'Water', phn: 13 }, { id: 'COKE', cat: 'addon', name: 'Coke', phn: 38 }, { id: 'KOPIKO', cat: 'addon', name: 'Kopiko', phn: 19 }
+      { id: 'FRIED CX', cat: 'addon', name: 'Fried CX', phn: 250, pck: 20 }, { id: 'LUMPIA-PORK', cat: 'addon', name: 'Lumpia Pork', phn: 160, pck: 20 }, { id: 'LUMPIA-CHICKEN', cat: 'addon', name: 'Lumpia Chicken', phn: 160, pck: 20 },
+      { id: 'LUMPIA-FISH', cat: 'addon', name: 'Lumpia Fish', phn: 160, pck: 20 }, { id: 'LUMPIA-SPICY', cat: 'addon', name: 'Lumpia Spicy', phn: 160, pck: 20 }, { id: 'CORDON', cat: 'addon', name: 'Cordon', phn: 176, pck: 20 },
+      { id: 'PORKS SISIG', cat: 'addon', name: 'Porks Sisig', phn: 132, pck: 10 }, { id: 'PUTO', cat: 'addon', name: 'Puto', phn: 40, pck: 10 }, { id: 'PICHI', cat: 'addon', name: 'Pichi', phn: 55, pck: 10 },
+      { id: 'LECHE FLAN', cat: 'addon', name: 'Leche Flan', phn: 80, pck: 10 }, { id: 'GULAMAN', cat: 'addon', name: 'Gulaman', phn: 45, pck: 25 },
+      { id: 'WATER', cat: 'addon', name: 'Water', phn: 15 }, { id: 'COKE', cat: 'addon', name: 'Coke', phn: 42 }, { id: 'KOPIKO', cat: 'addon', name: 'Kopiko', phn: 21 }
     ];
+    // ── OWNER-EDITABLE PHN RATES ─────────────────────────────
+    // phnOverrides: rates saved by owner in Supabase app_config table.
+    // Falls back to PRODUCTS[].phn defaults if table doesn't exist yet.
+    let phnOverrides = {};
+    function getPhn(productId) {
+      return (phnOverrides[productId] !== undefined) ? phnOverrides[productId] : (PRODUCTS.find(p => p.id === productId)?.phn || 0);
+    }
+    async function loadPhnRates() {
+      try {
+        const { data, error } = await _sb.from('app_config').select('value').eq('key', 'product_phn').maybeSingle();
+        if (!error && data && data.value) {
+          phnOverrides = data.value;
+          PRODUCTS.forEach(p => { if (phnOverrides[p.id] !== undefined) p.phn = phnOverrides[p.id]; });
+        }
+      } catch (e) { console.log('PHN rates: using defaults (create app_config table to enable owner editing).'); }
+    }
+    async function savePhnRates(rates) {
+      try {
+        showSaving(true);
+        const { error } = await _sb.from('app_config').upsert(
+          { key: 'product_phn', value: rates, updated_at: new Date().toISOString(), updated_by: googleUserInfo?.email || '' },
+          { onConflict: 'key' }
+        );
+        showSaving(false);
+        if (error) { alert('Save failed: ' + error.message); return false; }
+        phnOverrides = rates;
+        PRODUCTS.forEach(p => { if (rates[p.id] !== undefined) p.phn = rates[p.id]; });
+        return true;
+      } catch (e) { showSaving(false); alert('Save failed: ' + e.message); return false; }
+    }
     const VAT_RATE = 0.12;
     // Staff accounts (managed via Supabase)
     function getStaffAccounts() {
@@ -2004,7 +2045,7 @@
       const totalPck = bilaoPck + addonPck;
       // PHN total for food cost calculation
       let phn = 0;
-      PRODUCTS.filter(p => p.cat === 'noodle' || p.cat === 'addon').forEach(p => { phn += (products[p.id] || 0) * (p.phn || 0); });
+      PRODUCTS.filter(p => p.cat === 'noodle' || p.cat === 'addon').forEach(p => { phn += (products[p.id] || 0) * getPhn(p.id); });
       const foodCost = phn - totalPck;
       const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
       set('bac-total-qty', totalQty + ' pcs');
@@ -2069,7 +2110,7 @@
 
     function computeFinancials(products, vatSalesInput, cashHand, gcash, grabfood, foodpanda, totalExpenses, totalMisc) {
       let phn = 0;
-      PRODUCTS.filter(p => p.cat === 'noodle' || p.cat === 'addon').forEach(p => { phn += (products[p.id] || 0) * (p.phn || 0); });
+      PRODUCTS.filter(p => p.cat === 'noodle' || p.cat === 'addon').forEach(p => { phn += (products[p.id] || 0) * getPhn(p.id); });
       const bilaoQtyMap = getBilaoQtyFromNoodles();
       let bilaoQty = 0, bilaoFoodCost = 0, bilaoPck = 0;
       Object.entries(BILAO_SIZES).forEach(([size, info]) => { const q = bilaoQtyMap[size] || 0; bilaoQty += q; bilaoPck += q * info.pck; bilaoFoodCost += q * info.cost; });
@@ -2086,7 +2127,7 @@
       const expTotal = (totalExpenses || 0) + (totalMisc || 0);
       const cashSum = expTotal + cashHand;
       const checkBalance = vatSalesInput - cashSum;
-      const lpg = (gross / 15000) * 800;
+      const lpg = (gross / 15000) * getLpgRate(currentBranch);
       const grossPrf = gross - phn;
       const ohd = BRANCHES.find(b => b.name === currentBranch)?.ohd || 0;
       // PRF = GrossPrf - LPG - OHD - Misc Expenses only (regular expenses excluded from PRF calc)
@@ -2202,7 +2243,7 @@
     }
 
     function ownerTab(tab, el) {
-      if (tab === 'settings') { renderStaffAccounts(); renderBranchMgmt(); loadBrandPhoto(); }
+      if (tab === 'settings') { renderStaffAccounts(); renderBranchMgmt(); loadBrandPhoto(); renderPhnRates(); }
       ['dashboard', 'reports', 'products', 'settings', 'sales'].forEach(t => { const el = document.getElementById('owner-' + t); if (el) el.style.display = t === tab ? 'block' : 'none'; });
       document.querySelectorAll('#screen-owner .tab').forEach(t => t.classList.remove('active')); el.classList.add('active');
       if (tab === 'reports') renderReports();
@@ -2265,7 +2306,7 @@
       const branchName = e.branch || '';
       const guestCount = e.guestCount || 0;
       const ohd = BRANCHES.find(b => b.name === branchName)?.ohd || 0;
-      const lpg = (gross / 15000) * 800;
+      const lpg = (gross / 15000) * getLpgRate(branchName);
       const grossPrf = gross - phn;
       const prf = grossPrf - lpg - ohd - totalMisc;
       const tts = prf * 0.1;
@@ -2670,6 +2711,26 @@
       <div style="grid-column:span 2"><span style="${balClass.replace('color:', 'color:').replace(';', '')}font-weight:700">Check &amp; Balance</span><div style="font-weight:800;font-size:16px;${balClass}">${totCashBalance >= 0 ? '+' : ''}${peso(totCashBalance)} ${Math.abs(totCashBalance) < 1 ? '✓ Balanced' : '⚠ Variance'}</div></div>
     </div>
   </div>
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:4px">
+    <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:800">📋 Daily Breakdown Table</div>
+      <button onclick="exportBreakdownCSV()" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table" style="width:100%;min-width:800px;font-size:11px">
+        <thead><tr>
+          <th>Date</th><th>Branch</th><th>VAT Sales</th><th>Gross</th><th>PHN</th><th>Gross PRF</th><th>LPG</th><th>OHD</th><th>PRF</th><th>TTS</th><th>Net PRF</th><th>Expenses</th><th>Guests</th><th>Avg Chk</th><th>C&amp;B</th>
+        </tr></thead>
+        <tbody id="breakdown-tbody">
+          ${entries.map(e => { const cb=e.checkBalance||0; const cbCol=Math.abs(cb)<1?'var(--green-dark)':'var(--red-text)'; const ac=e.avgCheck>0?peso(e.avgCheck):(e.gross>0&&e.guestCount>0?peso(e.gross/e.guestCount):'—'); return `<tr><td>${e.date}</td><td>${e.branch}</td><td style="text-align:right">${peso(e.totalVatSales||0)}</td><td style="text-align:right">${peso(e.gross||0)}</td><td style="text-align:right">${peso(e.phn||0)}</td><td style="text-align:right">${peso(e.grossPrf||0)}</td><td style="text-align:right">${peso(e.lpg||0)}</td><td style="text-align:right">${peso(e.ohd||0)}</td><td style="text-align:right">${peso(e.prf||0)}</td><td style="text-align:right">${peso(e.tts||0)}</td><td style="text-align:right;font-weight:800">${peso(e.netPrf||0)}</td><td style="text-align:right;color:var(--red-text)">${peso((e.totalExpenses||0)+(e.totalMisc||0))}</td><td style="text-align:center">${e.guestCount||0}</td><td style="text-align:right">${ac}</td><td style="text-align:right;font-weight:700;color:${cbCol}">${cb>=0?'+':''}${peso(cb)}</td></tr>`; }).join('')}
+        </tbody>
+        <tfoot><tr style="font-weight:800;background:var(--yellow)">
+          <td colspan="2">TOTAL (${entries.length} days)</td>
+          <td style="text-align:right">${peso(totSales)}</td><td style="text-align:right">${peso(totGross)}</td><td style="text-align:right">${peso(totPhn)}</td><td style="text-align:right">${peso(totGrossPrf)}</td><td style="text-align:right">${peso(totLpg)}</td><td style="text-align:right">${peso(totOhd)}</td><td style="text-align:right">${peso(totPrf)}</td><td style="text-align:right">${peso(totTts)}</td><td style="text-align:right;color:var(--green-dark)">${peso(totNetPrf)}</td><td style="text-align:right;color:var(--red-text)">${peso(totExp)}</td><td style="text-align:center">${totGuests}</td><td style="text-align:right">${avgCheck>0?peso(avgCheck):'—'}</td><td>—</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
   ${dayCards}`;
     }
 
@@ -2783,6 +2844,10 @@
         <span style="color:var(--text-2)">OHD ₱</span>
         <input type="number" value="${b.ohd}" style="width:80px;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="updateBranchField('${b.id}','ohd',this.value)">
       </div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:13px">
+        <span style="color:var(--text-2);white-space:nowrap">LPG ₱/15k</span>
+        <input type="number" value="${lpgRateOverrides[b.name] ?? 800}" style="width:72px;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="saveLpgRate('${b.name}',this.value)" title="LPG cost per ₱15,000 gross. Default: ₱800">
+      </div>
       <div style="display:flex;align-items:center;gap:4px;font-size:13px;flex:1;min-width:140px">
         <span style="color:var(--text-2)">📍</span>
         <input type="text" value="${b.location || ''}" placeholder="address" style="flex:1;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="updateBranchField('${b.id}','location',this.value)">
@@ -2871,10 +2936,82 @@
       }
     }
 
+    // ── LPG RATE OVERRIDES (stored in app_config as branch_lpg_rates) ──
+    let lpgRateOverrides = {};
+    function getLpgRate(branchName) {
+      return lpgRateOverrides[branchName] !== undefined ? lpgRateOverrides[branchName] : 800;
+    }
+    async function loadLpgRates() {
+      try {
+        const { data, error } = await _sb.from('app_config').select('value').eq('key', 'branch_lpg_rates').maybeSingle();
+        if (!error && data && data.value) lpgRateOverrides = data.value;
+      } catch (e) { console.log('LPG rates: using default ₱800/₱15k.'); }
+    }
+    async function saveLpgRate(branchName, val) {
+      lpgRateOverrides[branchName] = Number(val) || 800;
+      try {
+        showSaving(true);
+        await _sb.from('app_config').upsert(
+          { key: 'branch_lpg_rates', value: lpgRateOverrides, updated_at: new Date().toISOString(), updated_by: googleUserInfo?.email || '' },
+          { onConflict: 'key' }
+        );
+        showSaving(false);
+      } catch (e) { showSaving(false); alert('LPG save failed: ' + e.message); }
+    }
+
+    // ── PHN RATES EDITOR UI ──
+    function renderPhnRates() {
+      const el = document.getElementById('phn-rates-table');
+      if (!el) return;
+      const groups = [
+        { label: '🍜 Noodles', cat: 'noodle' },
+        { label: '🍗 Add-ons', cat: 'addon' }
+      ];
+      el.innerHTML = groups.map(g => {
+        const prods = PRODUCTS.filter(p => p.cat === g.cat && p.phn !== undefined);
+        if (!prods.length) return '';
+        return `<div style="font-size:11px;font-weight:800;color:var(--text-2);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.5px">${g.label}</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:5px">
+  ${prods.map(p => `<div style="display:flex;align-items:center;gap:5px;background:var(--bg);border-radius:7px;padding:5px 8px">
+    <span style="flex:1;font-size:11px;font-weight:600">${p.name}</span>
+    <span style="font-size:10px;color:var(--text-3)">₱</span>
+    <input type="number" id="phn-rate-${p.id.replace(/[^a-zA-Z0-9]/g,'_')}" value="${p.phn}" min="0" style="width:65px;border:1.5px solid var(--border-strong);border-radius:5px;padding:2px 5px;font-size:12px;text-align:right;background:var(--surface);color:var(--text)">
+  </div>`).join('')}
+</div>`;
+      }).join('');
+    }
+    async function savePhnRatesFromUI() {
+      const rates = {};
+      PRODUCTS.filter(p => p.phn !== undefined).forEach(p => {
+        const el = document.getElementById('phn-rate-' + p.id.replace(/[^a-zA-Z0-9]/g,'_'));
+        if (el) rates[p.id] = parseFloat(el.value) || 0;
+      });
+      const ok = await savePhnRates(rates);
+      if (ok) alert('✅ Puhunan rates saved!');
+    }
+
+    // ── CSV EXPORT FOR BREAKDOWN TABLE ──
+    function exportBreakdownCSV() {
+      const tbody = document.getElementById('breakdown-tbody');
+      if (!tbody) return;
+      const headers = ['Date','Branch','VAT Sales','Gross','PHN','Gross PRF','LPG','OHD','PRF','TTS','Net PRF','Expenses','Guests','Avg Check','C&B'];
+      const rows = Array.from(tbody.querySelectorAll('tr')).map(tr =>
+        Array.from(tr.querySelectorAll('td')).map(td => '"' + td.textContent.replace(/₱|,/g,'').trim() + '"').join(',')
+      );
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'breakdown_' + (document.getElementById('report-month')?.value || 'all') + '.csv';
+      a.click();
+    }
+
     window.onload = async function () {
       // Load branches from Supabase (needed before any screen renders)
       await loadBranches();
       populateBranchUI();
+      await loadPhnRates();
+      await loadLpgRates();
 
       // Restore session on refresh
       const saved = sessionStorage.getItem(SESSION_KEY);
@@ -2885,6 +3022,7 @@
             if (s.role === 'owner') {
               await loadStaffAccountsFromDB();
               showScreen('screen-owner'); initOwnerDashboard(); resetInactivityTimer();
+              await loadPhnRates(); await loadLpgRates();
             } else if (s.role === 'staff' && s.branch) {
               currentBranch = s.branch; currentStaff = s.staff;
               document.getElementById('staff-branch-label').textContent = s.branch;
