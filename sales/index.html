@@ -880,12 +880,22 @@
       color: var(--text-3);
       text-transform: uppercase;
       border-bottom: 2px solid var(--border);
+      border-right: 1px solid var(--border);
       background: var(--bg)
+    }
+
+    .data-table th:last-child {
+      border-right: none
     }
 
     .data-table td {
       padding: 10px;
-      border-bottom: 1px solid var(--border)
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border)
+    }
+
+    .data-table td:last-child {
+      border-right: none
     }
 
     .data-table tr:last-child td {
@@ -899,6 +909,12 @@
     .data-table td:last-child {
       text-align: right;
       font-weight: 700
+    }
+
+    @media (min-width: 1024px) {
+      .report-tables-grid {
+        grid-template-columns: 1fr 1fr !important
+      }
     }
 
     .badge {
@@ -1314,7 +1330,6 @@
               onkeydown="if(event.key==='Enter')loginStaff()"
               style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:15px;background:var(--surface)">
           </div>
-          </div>
           <button class="btn btn-primary" onclick="loginStaff()" style="width:100%;margin-top:12px;font-size:15px">Sign In as Staff</button>
         </div>
         <!-- Owner Login Panel -->
@@ -1577,9 +1592,21 @@
       </div>
 
       <div id="owner-reports" style="display:none">
-        <div class="filter-row">
+        <div class="filter-row" style="flex-wrap:wrap;gap:8px">
           <select id="report-branch"></select>
-          <input type="month" id="report-month">
+          <select id="report-mode" onchange="toggleReportMode()">
+            <option value="month">By Month</option>
+            <option value="day">Specific Day</option>
+            <option value="range">Custom Range</option>
+          </select>
+          <div id="rpt-mode-month"><input type="month" id="report-month"></div>
+          <div id="rpt-mode-day" style="display:none"><input type="date" id="report-day"></div>
+          <div id="rpt-mode-range" style="display:none;align-items:center;gap:4px">
+            <input type="date" id="report-from" style="font-size:13px">
+            <span style="font-size:12px;color:var(--text-2)">to</span>
+            <input type="date" id="report-to" style="font-size:13px">
+          </div>
+          <button class="btn btn-primary" onclick="renderReports()" style="padding:6px 16px;font-size:13px">🔍 Search</button>
         </div>
         <div id="report-content"></div>
       </div>
@@ -2839,11 +2866,9 @@
     <div class="metric-card orange"><div class="metric-lbl">GROSS PRF</div><div class="metric-val">${peso(totGrossPrf)}</div><div class="metric-sub">Gross − PHN</div></div>
     <div class="metric-card orange"><div class="metric-lbl">LPG</div><div class="metric-val">${peso(totLpg)}</div><div class="metric-sub">Gross/15000×Rate</div></div>
     <div class="metric-card orange"><div class="metric-lbl">OHD</div><div class="metric-val">${peso(totOhd)}</div><div class="metric-sub">Overhead per branch</div></div>
-    <div class="metric-card orange" style="border:2px solid var(--orange-dark)"><div class="metric-lbl">💰 NEW OHD</div><div class="metric-val" style="color:var(--orange-dark)">${peso(totOhd - tot('remittance'))}</div><div class="metric-sub">OHD − Owner Exp</div></div>
     <div class="metric-card orange"><div class="metric-lbl">PRF</div><div class="metric-val">${peso(totPrf)}</div><div class="metric-sub">GrossPrf−LPG−OHD−Misc</div></div>
     <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${peso(totTts)}</div><div class="metric-sub">PRF × 10% → Church</div></div>
     <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${peso(totNetPrf)}</div><div class="metric-sub">PRF − TTS</div></div>
-    <div class="metric-card green" style="border:2px solid var(--green-dark)"><div class="metric-lbl">💰 AFTER OWNER EXP</div><div class="metric-val" style="color:var(--green-dark)">${peso(tot('afterRemittance'))}</div><div class="metric-sub">Net PRF − Owner Exp</div></div>
     <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${peso(totExp)}</div><div class="metric-sub">All expenses + misc</div></div>
     <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${peso(totFoodCost)}</div><div class="metric-sub">PHN − Packaging Cost</div></div>
     <div class="metric-card orange"><div class="metric-lbl">PAPER COST (PCK)</div><div class="metric-val">${peso(tot('pck'))}</div><div class="metric-sub">Total packaging</div></div>
@@ -2880,12 +2905,32 @@
       }).join('') : '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-3)">No entries yet.</td></tr>';
     }
 
+    function toggleReportMode() {
+      const mode = document.getElementById('report-mode').value;
+      document.getElementById('rpt-mode-month').style.display = mode === 'month' ? '' : 'none';
+      document.getElementById('rpt-mode-day').style.display = mode === 'day' ? '' : 'none';
+      document.getElementById('rpt-mode-range').style.display = mode === 'range' ? 'flex' : 'none';
+    }
+
     async function renderReports() {
       const branch = document.getElementById('report-branch').value;
-      const month = document.getElementById('report-month').value;
+      const mode = document.getElementById('report-mode')?.value || 'month';
+      let dateLabel = '';
       let entries = await getEntries();
       if (branch !== 'all') entries = entries.filter(e => e.branch === branch);
-      if (month) entries = entries.filter(e => e.date.startsWith(month));
+      if (mode === 'month') {
+        const month = document.getElementById('report-month').value;
+        if (month) { entries = entries.filter(e => e.date.startsWith(month)); dateLabel = month; }
+      } else if (mode === 'day') {
+        const day = document.getElementById('report-day').value;
+        if (day) { entries = entries.filter(e => e.date === day); dateLabel = day; }
+      } else if (mode === 'range') {
+        const from = document.getElementById('report-from').value;
+        const to = document.getElementById('report-to').value;
+        if (from) entries = entries.filter(e => e.date >= from);
+        if (to) entries = entries.filter(e => e.date <= to);
+        dateLabel = (from || '…') + ' to ' + (to || '…');
+      }
       entries.sort((a, b) => b.date.localeCompare(a.date));
       const wrap = document.getElementById('report-content');
       if (!entries.length) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No data for this filter.</div></div>'; return; }
@@ -2958,7 +3003,7 @@
 
       wrap.innerHTML = `
   <div class="card" style="background:var(--yellow);border:1.5px solid var(--orange-light)">
-    <div style="font-size:14px;font-weight:800;color:var(--orange-text);margin-bottom:12px">📊 Period Summary${month ? ' – ' + month : ''} ${branch !== 'all' ? '· ' + branch : ''}</div>
+    <div style="font-size:14px;font-weight:800;color:var(--orange-text);margin-bottom:12px">📊 Period Summary${dateLabel ? ' – ' + dateLabel : ''} ${branch !== 'all' ? '· ' + branch : ''}</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:13px">
       <div><span style="color:var(--text-2)">VAT Sales</span><div style="font-weight:800;font-size:16px">${peso(totSales)}</div></div>
       <div><span style="color:var(--text-2)">Gross</span><div style="font-weight:800;font-size:16px">${peso(totGross)}</div></div>
@@ -2973,8 +3018,6 @@
       <div style="grid-column:span 2"><span style="color:var(--green-text);font-weight:700">NET PRF</span><div style="font-weight:900;font-size:20px;color:var(--green-dark)">${peso(totNetPrf)}</div></div>
       <div><span style="color:var(--text-2)">VAT (12%)</span><div style="font-weight:700;color:var(--orange-dark)">${peso(totSales * VAT_RATE)}</div></div>
       <div><span style="color:var(--orange-dark);font-weight:700">💰 Owner Expenses</span><div style="font-weight:800;color:var(--orange-dark)">${peso(tot('remittance'))}</div></div>
-      <div><span style="color:var(--text-2)">New OHD</span><div style="font-weight:700">${peso(totOhd - tot('remittance'))}</div></div>
-      <div><span style="color:var(--green-text);font-weight:700">💰 After Owner Exp</span><div style="font-weight:800;color:var(--green-dark)">${peso(tot('afterRemittance'))}</div></div>
       <div style="grid-column:span 2"><span style="color:var(--green-dark);font-weight:700">💰 Net Cash on Hand</span><div style="font-weight:900;font-size:18px;color:var(--green-dark)">${peso(totCashHand - tot('remittance'))}</div></div>
       <div><span style="color:var(--text-2)">Expenses</span><div style="font-weight:700;color:var(--red-text)">${peso(totExp)}</div></div>
       <div><span style="color:var(--text-2)">Food Cost (PHN−PCK)</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
@@ -2982,13 +3025,14 @@
       <div style="grid-column:span 2"><span style="${balClass.replace('color:', 'color:').replace(';', '')}font-weight:700">Check &amp; Balance</span><div style="font-weight:800;font-size:16px;${balClass}">${totCashBalance >= 0 ? '+' : ''}${peso(totCashBalance)} ${Math.abs(totCashBalance) < 1 ? '✓ Balanced' : '⚠ Variance'}</div></div>
     </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">
+  <div style="display:grid;grid-template-columns:1fr;gap:8px" class="report-tables-grid">
+  <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
       <div style="font-size:13px;font-weight:800">📋 P&amp;L Breakdown</div>
       <button onclick="exportBreakdownCSV('pnl')" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
     </div>
     <div style="overflow-x:auto">
-      <table class="data-table" style="width:100%;min-width:600px;font-size:11px">
+      <table class="data-table" style="width:100%;min-width:500px;font-size:11px;border:1px solid var(--border)">
         <thead><tr>
           <th>Date</th><th>Branch</th><th>Gross Sales</th><th>PHN</th><th>PRF</th><th>Net PRF</th><th>Guests</th><th>Avg Check</th><th>Remarks</th>
         </tr></thead>
@@ -3021,13 +3065,13 @@
       </table>
     </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden;margin-bottom:4px">
+  <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;font-weight:800">🧾 VAT &amp; Cost Detail</div>
+      <div style="font-size:13px;font-weight:800">🧲 VAT &amp; Cost Detail</div>
       <button onclick="exportBreakdownCSV('vat')" style="border:none;background:var(--orange-light);color:var(--orange-dark);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">⬇ CSV</button>
     </div>
     <div style="overflow-x:auto">
-      <table class="data-table" style="width:100%;min-width:600px;font-size:11px">
+      <table class="data-table" style="width:100%;min-width:500px;font-size:11px;border:1px solid var(--border)">
         <thead><tr>
           <th>Date</th><th>Branch</th><th>VAT Sales</th><th>Tax</th><th>Tax Walk-in</th><th>Grab Tax</th><th>Food Cost</th><th>Paper Cost</th>
         </tr></thead>
@@ -3058,6 +3102,7 @@
         </tr></tfoot>
       </table>
     </div>
+  </div>
   </div>
   ${dayCards}`;
     }
@@ -3224,7 +3269,8 @@
       </div>
       <div style="display:flex;align-items:center;gap:4px;font-size:13px">
         <span style="color:var(--text-2);white-space:nowrap">LPG ₱/15k</span>
-        <input type="number" value="${lpgRateOverrides[b.name] ?? 800}" style="width:72px;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" onchange="saveLpgRate('${b.name}',this.value)" title="LPG cost per ₱15,000 gross. Default: ₱800">
+        <input type="number" id="lpg-rate-${b.name.replace(/[^a-zA-Z0-9]/g,'_')}" value="${lpgRateOverrides[b.name] ?? 800}" style="width:72px;padding:4px 8px;border:1.5px solid var(--border-strong);border-radius:6px;font-size:13px" title="LPG cost per ₱15,000 gross. Default: ₱800">
+        <button onclick="saveLpgRate('${b.name}',document.getElementById('lpg-rate-${b.name.replace(/[^a-zA-Z0-9]/g,'_')}').value)" style="border:none;background:var(--green);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">💾 Save</button>
       </div>
       <div style="display:flex;align-items:center;gap:4px;font-size:13px;flex:1;min-width:140px">
         <span style="color:var(--text-2)">📍</span>
@@ -3421,9 +3467,11 @@
         } catch (e) { clearSession(); }
       }
       const now = new Date().toISOString().slice(0, 7);
+      const today = new Date().toISOString().slice(0, 10);
       ['hist-month', 'report-month', 'prod-month'].forEach(id => { const el = document.getElementById(id); if (el) el.value = now; });
-      const repMonth = document.getElementById('report-month'); if (repMonth) repMonth.addEventListener('change', renderReports);
-      const repBranch = document.getElementById('report-branch'); if (repBranch) repBranch.addEventListener('change', renderReports);
+      const rdEl = document.getElementById('report-day'); if (rdEl) rdEl.value = today;
+      const rfEl = document.getElementById('report-from'); if (rfEl) rfEl.value = now + '-01';
+      const rtEl = document.getElementById('report-to'); if (rtEl) rtEl.value = today;
       const prodMonth = document.getElementById('prod-month'); if (prodMonth) prodMonth.addEventListener('change', renderProductAnalysis);
       const prodBranch = document.getElementById('prod-branch-filter'); if (prodBranch) prodBranch.addEventListener('change', renderProductAnalysis);
       const histMonth = document.getElementById('hist-month'); if (histMonth) histMonth.addEventListener('change', renderStaffHistory);
