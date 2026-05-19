@@ -2475,7 +2475,16 @@
         ownerTab('sales', document.querySelectorAll('#screen-owner .tab')[1]);
         renderOwnerSalesEntries();
       } else {
-        logout();
+        // Staff never uses Supabase auth — just clear session and show login
+        clearSession();
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-login').style.display = 'block';
+        document.getElementById('login-overlay').classList.add('show');
+        const u = document.getElementById('staff-login-user'); if (u) u.value = '';
+        const p = document.getElementById('staff-login-pass'); if (p) p.value = '';
+        const err = document.getElementById('login-err'); if (err) err.style.display = 'none';
+        switchLoginTab('staff');
       }
     }
 
@@ -3202,8 +3211,6 @@
       if (!username || !password) { if (err) { err.textContent = 'Please enter username and password.'; err.style.display = 'block'; } return; }
       if (err) { err.textContent = 'Verifying…'; err.style.display = 'block'; }
       try {
-        // Ensure no stale auth session interferes with anon query
-        try { const { data: sess } = await _sb.auth.getSession(); if (sess?.session) await _sb.auth.signOut(); } catch (_) {}
         const hash = await sha256(password);
         // Direct targeted query — no need to load all accounts; works with anon RLS
         const { data, error } = await _sb.from('staff_accounts')
