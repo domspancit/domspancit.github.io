@@ -911,7 +911,13 @@
       font-weight: 700
     }
 
-    @media (min-width: 1024px) {
+    @media (min-width: 900px) {
+      #screen-owner .page-content {
+        max-width: 1200px
+      }
+    }
+
+    @media (min-width: 1200px) {
       .report-tables-grid {
         grid-template-columns: 1fr 1fr !important
       }
@@ -1371,8 +1377,11 @@
         <div class="card">
           <div class="money-grid">
             <div class="money-field"><label>Date of Sales</label><input type="date" id="sales-date"></div>
-            <div class="money-field"><label>Number of Guests</label><input type="number" id="guest-count"
-                placeholder="0" inputmode="numeric" oninput="updateLiveTotals()"></div>
+            <div class="money-field"><label>Number of Guests</label><div style="display:flex;align-items:center;gap:0">
+                <button type="button" onclick="gcStep(-1)" style="width:38px;height:42px;border:1.5px solid var(--border-strong);border-radius:8px 0 0 8px;background:var(--bg);font-size:18px;font-weight:700;cursor:pointer;color:var(--text-2);line-height:1">−</button>
+                <input type="number" id="guest-count" placeholder="0" inputmode="numeric" oninput="updateLiveTotals()" style="border-radius:0;border-left:none;border-right:none;text-align:center;width:100%">
+                <button type="button" onclick="gcStep(1)" style="width:38px;height:42px;border:1.5px solid var(--border-strong);border-radius:0 8px 8px 0;background:var(--bg);font-size:18px;font-weight:700;cursor:pointer;color:var(--green-dark);line-height:1">+</button>
+              </div></div>
           </div>
         </div>
 
@@ -2079,11 +2088,16 @@
 
     function logout() {
       clearSession();
-      _sb.auth.signOut();
+      try { _sb.auth.signOut(); } catch (_) {}
       if (inactivityTimer) clearTimeout(inactivityTimer);
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-login').style.display = 'block';
       document.getElementById('login-overlay').classList.add('show');
+      // Clear login form fields so next login works cleanly
+      const u = document.getElementById('staff-login-user'); if (u) u.value = '';
+      const p = document.getElementById('staff-login-pass'); if (p) p.value = '';
+      const err = document.getElementById('login-err'); if (err) err.style.display = 'none';
+      switchLoginTab('staff');
       initGoogleSignIn();
     }
     function showScreen(id) {
@@ -2120,6 +2134,15 @@
       v = Math.max(0, v + delta);
       el.value = v > 0 ? v : '';
       onQtyChange();
+    }
+
+    function gcStep(delta) {
+      const el = document.getElementById('guest-count');
+      if (!el) return;
+      let v = parseInt(el.value) || 0;
+      v = Math.max(0, v + delta);
+      el.value = v > 0 ? v : '';
+      updateLiveTotals();
     }
 
     // ── BILAO SIZE GROUPS (noodle products → bilao size) ─────
@@ -2974,6 +2997,7 @@
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GUESTS</div><div style="font-weight:800;font-size:15px">${e.guestCount || 0}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">AVG CHECK</div><div style="font-weight:800;font-size:15px">${avgCk}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GROSS</div><div style="font-weight:800;font-size:15px">${peso(e.gross || 0)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">INITIAL CASH</div><div style="font-weight:800;font-size:15px">${peso(e.cashHand || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">CASH ON HAND (After VAT)</div><div style="font-weight:700">${peso(e.cashAfterVat || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GCash</div><div style="font-weight:700">${peso(e.gcash || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">GrabFood</div><div style="font-weight:700">${peso(e.grabfood || 0)}</div></div>
@@ -2987,7 +3011,7 @@
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">PRF</div><div style="font-weight:800">${peso(e.prf || 0)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">TTS (10%)</div><div style="font-weight:800">${peso(e.tts || 0)}</div></div>
         <div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">NET PRF</div><div style="font-weight:900;font-size:16px;color:var(--green-dark)">${peso(e.netPrf || 0)}</div></div>
-        ${e.remittance > 0 ? `<div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">💰 Owner Exp</div><div style="font-weight:800">${peso(e.remittance)}</div></div><div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">New OHD</div><div style="font-weight:800">${peso((e.ohd||0)-(e.remittance||0))}</div></div><div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">💰 NET CASH ON HAND</div><div style="font-weight:900;font-size:15px;color:var(--green-dark)">${peso((e.cashHand||0) - (e.remittance||0))}</div></div>` : ''}
+        ${e.remittance > 0 ? `<div style="background:var(--orange-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">💰 Owner Exp</div><div style="font-weight:800">${peso(e.remittance)}</div></div><div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">💰 NET CASH ON HAND</div><div style="font-weight:900;font-size:15px;color:var(--green-dark)">${peso((e.cashHand||0) - (e.remittance||0))}</div></div>` : ''}
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">FOOD COST</div><div style="font-weight:700">${peso(e.foodCost || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.paperCost || e.pck || 0)}</div></div>
         <div style="background:${Math.abs(cb) < 1 ? 'var(--green-light)' : 'var(--red-light)'};border-radius:8px;padding:7px 9px;grid-column:span 2">
