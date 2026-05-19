@@ -146,7 +146,9 @@
       max-width: 380px;
       box-shadow: 0 0 0 0 rgba(212, 31, 38, 0), 0 20px 60px rgba(0, 0, 0, .4);
       animation: none;
-      transition: box-shadow .3s ease
+      transition: box-shadow .3s ease;
+      overflow: hidden;
+      position: relative
     }
 
     .login-overlay.show .login-box {
@@ -1852,16 +1854,22 @@
     async function savePhnRates(rates) {
       try {
         showSaving(true);
+        // Always save to localStorage as fallback
+        localStorage.setItem('doms_phn_rates', JSON.stringify(rates));
         const { error } = await _sb.from('app_config').upsert(
-          { key: 'product_phn', value: rates, updated_at: new Date().toISOString(), updated_by: googleUserInfo?.email || '' },
+          { key: 'product_phn', value: rates },
           { onConflict: 'key' }
         );
         showSaving(false);
-        if (error) { alert('Save failed: ' + error.message); return false; }
+        if (error) { console.warn('PHN Supabase save failed (using localStorage):', error.message); }
         phnOverrides = rates;
         PRODUCTS.forEach(p => { if (rates[p.id] !== undefined) p.phn = rates[p.id]; });
         return true;
-      } catch (e) { showSaving(false); alert('Save failed: ' + e.message); return false; }
+      } catch (e) { showSaving(false); console.warn('PHN Supabase save failed (using localStorage):', e.message);
+        phnOverrides = rates;
+        PRODUCTS.forEach(p => { if (rates[p.id] !== undefined) p.phn = rates[p.id]; });
+        return true;
+      }
     }
     const VAT_RATE = 0.12;
     // Staff accounts (managed via Supabase)
@@ -2072,7 +2080,19 @@
       updateLiveTotals();
     }
     function buildGrid(gid, prods) {
-      document.getElementById(gid).innerHTML = prods.map(p => `<div class="prod-cell"><label>${p.name}</label><input type="number" min="0" step="1" inputmode="numeric" id="qty-${p.id}" placeholder="0" oninput="onQtyChange()"></div>`).join('');
+      document.getElementById(gid).innerHTML = prods.map(p => `<div class="prod-cell"><label>${p.name}</label><div style="display:flex;align-items:center;gap:0">
+        <button type="button" onclick="qtyStep('${p.id}',-1)" style="width:34px;height:38px;border:1.5px solid var(--border-strong);border-radius:8px 0 0 8px;background:var(--bg);font-size:18px;font-weight:700;cursor:pointer;color:var(--text-2);line-height:1">−</button>
+        <input type="number" min="0" step="1" inputmode="numeric" id="qty-${p.id}" placeholder="0" oninput="onQtyChange()" style="border-radius:0;border-left:none;border-right:none;text-align:center;width:100%">
+        <button type="button" onclick="qtyStep('${p.id}',1)" style="width:34px;height:38px;border:1.5px solid var(--border-strong);border-radius:0 8px 8px 0;background:var(--bg);font-size:18px;font-weight:700;cursor:pointer;color:var(--green-dark);line-height:1">+</button>
+      </div></div>`).join('');
+    }
+    function qtyStep(prodId, delta) {
+      const el = document.getElementById('qty-' + prodId);
+      if (!el) return;
+      let v = parseInt(el.value) || 0;
+      v = Math.max(0, v + delta);
+      el.value = v > 0 ? v : '';
+      onQtyChange();
     }
 
     // ── BILAO SIZE GROUPS (noodle products → bilao size) ─────
@@ -2552,11 +2572,18 @@
     <div style="background:var(--green-light);border-radius:10px;padding:9px 14px;margin:6px 0 12px;font-size:12px;color:var(--green-text)">
       ✅ Saving will auto-recalculate: PRF, TTS, Net PRF, Food Cost, LPG, Avg Check, Check Balance.
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-bottom:10px">
-      ${f('Remittance to Owner (₱)', 'remittance', entry.remittance || 0)}
+    <div style="background:var(--surface);border-radius:10px;padding:10px 14px;margin:8px 0;border:1.5px solid var(--green)">
+      <div style="font-size:12px;font-weight:700;color:var(--green-dark);margin-bottom:8px">
+        💰 OWNER EXPENSES <span style="font-weight:400;color:var(--text-2)">(deducted from Cash on Hand → Net Cash on Hand)</span>
+      </div>
+      <div id="ef-oexp-rows">${makeRows('ef-oexp', entry.ownerExpenses || (entry.remittance > 0 ? [{desc:'Owner Expense', amt: entry.remittance}] : []))}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <button onclick="efAddRow('ef-oexp')" style="font-size:12px;color:var(--green-dark);border:1.5px dashed var(--green);background:var(--green-light);border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600">+ Add Owner Expense</button>
+        <span style="font-size:12px;color:var(--text-3)">Total: <strong style="color:var(--green-dark)" id="ef-oexp-total">${peso(entry.remittance || 0)}</strong></span>
+      </div>
     </div>
-    <div style="background:var(--bg);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:12px;border:1px solid var(--border)">
-      💸 <strong>After Remittance</strong> = Net PRF − Remittance &nbsp;·&nbsp; Will auto-compute on save.
+    <div style="background:var(--green-light);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:12px;border:1px solid var(--green);color:var(--green-dark)">
+      💰 <strong>Net Cash on Hand</strong> = Cash on Hand − Owner Expenses &nbsp;·&nbsp; Will auto-compute on save.
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-primary" onclick="saveEditModal('${entry.id}')" style="flex:2">💾 Save &amp; Recalculate</button>
@@ -2646,14 +2673,17 @@
       const avgCheck = guestCount > 0 ? gross / guestCount : 0;
       const foodCost = phn - orig.pck; // Food Cost = PHN - PCK (packaging)
       const paperCost = orig.pck || 0;
-      const remittance = g('remittance');
+      // Owner expenses (dynamic rows like staff expenses)
+      const ownerExpenses = efReadRows('ef-oexp');
+      const remittance = ownerExpenses.reduce((s, x) => s + x.amt, 0);
       const afterRemittance = netPrf - remittance;
+      const netCashOnHand = cashHand - remittance;
       updateEntry(id, {
         date: newDate, guestCount, vatSalesInput, cashHand, gcash, grabfood, foodpanda,
         expenses, miscExpenses, totalExpenses, totalMisc, foodCost,
         totalVatSales, vat, salesLessVat, gross, cashAfterVat, cashSum, checkBalance,
         lpg, grossPrf, prf, tts, netPrf, avgCheck, ohd, paperCost,
-        remittance, afterRemittance
+        ownerExpenses, remittance, afterRemittance, netCashOnHand
       });
     }
 
@@ -2779,12 +2809,12 @@
         <div style="display:flex;align-items:center;gap:8px"><div class="branch-dot branch-dot-${i}"></div><div class="branch-name">${b.name}</div></div>
         <span class="badge badge-${c === 'red' ? 'red' : c === 'green' ? 'green' : 'orange'}">${be.length} day${be.length !== 1 ? 's' : ''}</span>
       </div>
-      <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px">${pesoS(bTotSales)}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px">${peso(bTotSales)}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
-        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">GROSS</div><div style="font-weight:700">${pesoS(bGross)}</div></div>
-        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">NET PRF</div><div style="font-weight:700;color:var(--green-dark)">${pesoS(bNetPrf)}</div></div>
-        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">TTS (10%)</div><div style="font-weight:700;color:var(--orange-dark)">${pesoS(bTts)}</div></div>
-        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">LPG</div><div style="font-weight:700">${pesoS(bLpg)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">GROSS</div><div style="font-weight:700">${peso(bGross)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">NET PRF</div><div style="font-weight:700;color:var(--green-dark)">${peso(bNetPrf)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">TTS (10%)</div><div style="font-weight:700;color:var(--orange-dark)">${peso(bTts)}</div></div>
+        <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">LPG</div><div style="font-weight:700">${peso(bLpg)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">GUESTS</div><div style="font-weight:700">${bGuests.toLocaleString()}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:6px 8px"><div style="color:var(--text-3);font-weight:600">AVG CHECK</div><div style="font-weight:700">${bAvgCheck > 0 ? '₱' + bAvgCheck.toFixed(2) : '—'}</div></div>
       </div>
@@ -2802,22 +2832,22 @@
       const totCashBalance = entries.reduce((s, e) => s + (e.checkBalance || 0), 0);
       const balClass = Math.abs(totCashBalance) < 1 ? 'color:var(--green-text)' : 'color:var(--red-text)';
       document.getElementById('overall-metrics').innerHTML = `
-    <div class="metric-card red"><div class="metric-lbl">TOTAL VAT SALES</div><div class="metric-val">${pesoS(totSales)}</div><div class="metric-sub">${entries.length} entr${entries.length !== 1 ? 'ies' : 'y'}</div></div>
-    <div class="metric-card red"><div class="metric-lbl">VAT (12%)</div><div class="metric-val">${pesoS(tot('vat'))}</div><div class="metric-sub">VAT Sales × 12/112</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">GROSS</div><div class="metric-val">${pesoS(totGross)}</div><div class="metric-sub">After VAT + Delivery</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">PHN (Noodle Rev)</div><div class="metric-val">${pesoS(totPhn)}</div><div class="metric-sub">Noodle revenue</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">GROSS PRF</div><div class="metric-val">${pesoS(totGrossPrf)}</div><div class="metric-sub">Gross − PHN</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">LPG</div><div class="metric-val">${pesoS(totLpg)}</div><div class="metric-sub">Gross/15000×800</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">OHD</div><div class="metric-val">${pesoS(totOhd)}</div><div class="metric-sub">Overhead per branch</div></div>
-    <div class="metric-card orange" style="border:2px solid var(--orange-dark)"><div class="metric-lbl">💰 NEW OHD</div><div class="metric-val" style="color:var(--orange-dark)">${pesoS(totOhd - tot('remittance'))}</div><div class="metric-sub">OHD − Owner Exp</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">PRF</div><div class="metric-val">${pesoS(totPrf)}</div><div class="metric-sub">GrossPrf−LPG−OHD−Misc</div></div>
-    <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${pesoS(totTts)}</div><div class="metric-sub">PRF × 10% → Church</div></div>
-    <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${pesoS(totNetPrf)}</div><div class="metric-sub">PRF − TTS</div></div>
-    <div class="metric-card green" style="border:2px solid var(--green-dark)"><div class="metric-lbl">💰 AFTER OWNER EXP</div><div class="metric-val" style="color:var(--green-dark)">${pesoS(tot('afterRemittance'))}</div><div class="metric-sub">Net PRF − Owner Exp</div></div>
-    <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${pesoS(totExp)}</div><div class="metric-sub">All expenses + misc</div></div>
-    <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${pesoS(totFoodCost)}</div><div class="metric-sub">PHN − Packaging Cost</div></div>
-    <div class="metric-card orange"><div class="metric-lbl">PAPER COST (PCK)</div><div class="metric-val">${pesoS(tot('pck'))}</div><div class="metric-sub">Total packaging</div></div>
-    <div class="metric-card ${Math.abs(totCashBalance) < 1 ? 'green' : 'red'}"><div class="metric-lbl">CHECK & BALANCE</div><div class="metric-val" style="${balClass}">${totCashBalance >= 0 ? '+' : ''}${pesoS(totCashBalance)}</div><div class="metric-sub">${Math.abs(totCashBalance) < 1 ? '✓ Balanced' : '⚠ Variance'}</div></div>
+    <div class="metric-card red"><div class="metric-lbl">TOTAL VAT SALES</div><div class="metric-val">${peso(totSales)}</div><div class="metric-sub">${entries.length} entr${entries.length !== 1 ? 'ies' : 'y'}</div></div>
+    <div class="metric-card red"><div class="metric-lbl">VAT (12%)</div><div class="metric-val">${peso(tot('vat'))}</div><div class="metric-sub">VAT Sales × 12/112</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">GROSS</div><div class="metric-val">${peso(totGross)}</div><div class="metric-sub">After VAT + Delivery</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PHN (Noodle Rev)</div><div class="metric-val">${peso(totPhn)}</div><div class="metric-sub">Noodle revenue</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">GROSS PRF</div><div class="metric-val">${peso(totGrossPrf)}</div><div class="metric-sub">Gross − PHN</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">LPG</div><div class="metric-val">${peso(totLpg)}</div><div class="metric-sub">Gross/15000×Rate</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">OHD</div><div class="metric-val">${peso(totOhd)}</div><div class="metric-sub">Overhead per branch</div></div>
+    <div class="metric-card orange" style="border:2px solid var(--orange-dark)"><div class="metric-lbl">💰 NEW OHD</div><div class="metric-val" style="color:var(--orange-dark)">${peso(totOhd - tot('remittance'))}</div><div class="metric-sub">OHD − Owner Exp</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PRF</div><div class="metric-val">${peso(totPrf)}</div><div class="metric-sub">GrossPrf−LPG−OHD−Misc</div></div>
+    <div class="metric-card green"><div class="metric-lbl">TTS (Tithes 10%)</div><div class="metric-val">${peso(totTts)}</div><div class="metric-sub">PRF × 10% → Church</div></div>
+    <div class="metric-card green"><div class="metric-lbl">NET PRF</div><div class="metric-val">${peso(totNetPrf)}</div><div class="metric-sub">PRF − TTS</div></div>
+    <div class="metric-card green" style="border:2px solid var(--green-dark)"><div class="metric-lbl">💰 AFTER OWNER EXP</div><div class="metric-val" style="color:var(--green-dark)">${peso(tot('afterRemittance'))}</div><div class="metric-sub">Net PRF − Owner Exp</div></div>
+    <div class="metric-card red"><div class="metric-lbl">TOTAL EXPENSES</div><div class="metric-val">${peso(totExp)}</div><div class="metric-sub">All expenses + misc</div></div>
+    <div class="metric-card red"><div class="metric-lbl">FOOD COST</div><div class="metric-val">${peso(totFoodCost)}</div><div class="metric-sub">PHN − Packaging Cost</div></div>
+    <div class="metric-card orange"><div class="metric-lbl">PAPER COST (PCK)</div><div class="metric-val">${peso(tot('pck'))}</div><div class="metric-sub">Total packaging</div></div>
+    <div class="metric-card ${Math.abs(totCashBalance) < 1 ? 'green' : 'red'}"><div class="metric-lbl">CHECK & BALANCE</div><div class="metric-val" style="${balClass}">${totCashBalance >= 0 ? '+' : ''}${peso(totCashBalance)}</div><div class="metric-sub">${Math.abs(totCashBalance) < 1 ? '✓ Balanced' : '⚠ Variance'}</div></div>
     <div class="metric-card orange"><div class="metric-lbl">TOTAL GUESTS</div><div class="metric-val">${totGuests.toLocaleString()}</div><div class="metric-sub">${entries.length} entr${entries.length !== 1 ? 'ies' : 'y'}</div></div>
     <div class="metric-card green"><div class="metric-lbl">AVERAGE CHECK</div><div class="metric-val">${avgCheck > 0 ? '₱' + avgCheck.toFixed(2) : '—'}</div><div class="metric-sub">Gross ÷ Guests</div></div>`;
       // Top products
@@ -2912,7 +2942,7 @@
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">PRF</div><div style="font-weight:800">${peso(e.prf || 0)}</div></div>
         <div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">TTS (10%)</div><div style="font-weight:800">${peso(e.tts || 0)}</div></div>
         <div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">NET PRF</div><div style="font-weight:900;font-size:16px;color:var(--green-dark)">${peso(e.netPrf || 0)}</div></div>
-        ${e.remittance > 0 ? `<div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">💰 Owner Exp</div><div style="font-weight:800">${peso(e.remittance)}</div></div><div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">New OHD</div><div style="font-weight:800">${peso((e.ohd||0)-(e.remittance||0))}</div></div>` : ''}
+        ${e.remittance > 0 ? `<div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">💰 Owner Exp</div><div style="font-weight:800">${peso(e.remittance)}</div></div><div style="background:var(--orange-light);border-radius:8px;padding:7px 9px"><div style="color:var(--orange-text);font-weight:700;margin-bottom:2px">New OHD</div><div style="font-weight:800">${peso((e.ohd||0)-(e.remittance||0))}</div></div><div style="background:var(--green-light);border-radius:8px;padding:7px 9px;grid-column:span 2"><div style="color:var(--green-text);font-weight:700;margin-bottom:2px">💰 NET CASH ON HAND</div><div style="font-weight:900;font-size:15px;color:var(--green-dark)">${peso((e.cashHand||0) - (e.remittance||0))}</div></div>` : ''}
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">FOOD COST</div><div style="font-weight:700">${peso(e.foodCost || 0)}</div></div>
         <div style="background:var(--bg);border-radius:8px;padding:7px 9px"><div style="color:var(--text-3);font-weight:600;margin-bottom:2px">PAPER COST (PCK)</div><div style="font-weight:700">${peso(e.paperCost || e.pck || 0)}</div></div>
         <div style="background:${Math.abs(cb) < 1 ? 'var(--green-light)' : 'var(--red-light)'};border-radius:8px;padding:7px 9px;grid-column:span 2">
@@ -2945,6 +2975,7 @@
       <div><span style="color:var(--orange-dark);font-weight:700">💰 Owner Expenses</span><div style="font-weight:800;color:var(--orange-dark)">${peso(tot('remittance'))}</div></div>
       <div><span style="color:var(--text-2)">New OHD</span><div style="font-weight:700">${peso(totOhd - tot('remittance'))}</div></div>
       <div><span style="color:var(--green-text);font-weight:700">💰 After Owner Exp</span><div style="font-weight:800;color:var(--green-dark)">${peso(tot('afterRemittance'))}</div></div>
+      <div style="grid-column:span 2"><span style="color:var(--green-dark);font-weight:700">💰 Net Cash on Hand</span><div style="font-weight:900;font-size:18px;color:var(--green-dark)">${peso(totCashHand - tot('remittance'))}</div></div>
       <div><span style="color:var(--text-2)">Expenses</span><div style="font-weight:700;color:var(--red-text)">${peso(totExp)}</div></div>
       <div><span style="color:var(--text-2)">Food Cost (PHN−PCK)</span><div style="font-weight:700">${peso(totFoodCost)}</div></div>
       <div><span style="color:var(--text-2)">Paper Cost (PCK)</span><div style="font-weight:700">${peso(tot('pck'))}</div></div>
@@ -3291,11 +3322,15 @@
     async function loadLpgRates() {
       try {
         const { data, error } = await _sb.from('app_config').select('value').eq('key', 'branch_lpg_rates').maybeSingle();
-        if (!error && data && data.value) lpgRateOverrides = data.value;
-      } catch (e) { console.log('LPG rates: using default ₱800/₱15k.'); }
+        if (!error && data && data.value) { lpgRateOverrides = data.value; localStorage.setItem('doms_lpg_rates', JSON.stringify(lpgRateOverrides)); return; }
+      } catch (e) { /* table may not exist */ }
+      // Fallback: load from localStorage
+      try { const cached = JSON.parse(localStorage.getItem('doms_lpg_rates') || '{}'); if (cached && typeof cached === 'object') lpgRateOverrides = cached; } catch (_) {}
     }
     async function saveLpgRate(branchName, val) {
       lpgRateOverrides[branchName] = Number(val) || 800;
+      // Always persist to localStorage as fallback
+      localStorage.setItem('doms_lpg_rates', JSON.stringify(lpgRateOverrides));
       try {
         showSaving(true);
         const { error } = await _sb.from('app_config').upsert(
@@ -3303,8 +3338,8 @@
           { onConflict: 'key' }
         );
         showSaving(false);
-        if (error) alert('LPG save failed: ' + error.message);
-      } catch (e) { showSaving(false); alert('LPG save failed: ' + e.message); }
+        if (error) { console.warn('LPG Supabase save failed (using localStorage):', error.message); }
+      } catch (e) { showSaving(false); console.warn('LPG Supabase save failed (using localStorage):', e.message); }
     }
 
     // ── PHN RATES EDITOR UI ──
